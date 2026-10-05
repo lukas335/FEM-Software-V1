@@ -1,0 +1,13 @@
+defaults:
+  measurement_radius_mm: 8.0
+  measurement_thickness_mm: 1.25
+  pressure_radius_mm: 22.0
+  pressure_thickness_mm: 1.0
+  measurement_material: silicone_A30
+  pressure_material: silicone_A30
+  pressure_mmhg: 15.0
+  max_displacement_mm: 1.0
+  fit_start_mm: 0.2
+  fit_end_mm: 0.8
+  wedge_angle_deg: 3.0
+  mesh_quality: normal

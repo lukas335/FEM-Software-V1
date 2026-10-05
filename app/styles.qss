@@ -1,0 +1,34 @@
+QMainWindow, QWidget#workspace { background: #f1f5f9; }
+QWidget { color: #233449; font-family: 'Segoe UI'; font-size: 13px; }
+QFrame#header { background: #102a3b; border-radius: 12px; }
+QLabel#brand { color: #ffffff; font-size: 25px; font-weight: 700; }
+QLabel#tagline { color: #a8c6d3; font-size: 12px; }
+QLabel#badge { color: #97eee0; background: #214658; border-radius: 10px; padding: 7px 14px; font-weight: 600; }
+QFrame#card { background: #ffffff; border: 1px solid #dde5ee; border-radius: 12px; }
+QLabel#sectionTitle { font-size: 19px; font-weight: 650; }
+QLabel#muted { color: #64748b; font-size: 12px; }
+QLabel#metricTitle { color: #64748b; font-size: 12px; }
+QLabel#metricValue { color: #123c4b; font-size: 22px; font-weight: 700; }
+QLabel#notice { background: #e6f1f3; color: #426575; border-radius: 8px; padding: 9px 12px; }
+QLabel#fitMessage { color: #b45309; }
+QTabWidget::pane { border: none; }
+QTabBar::tab { background: transparent; padding: 12px 20px; margin-right: 6px; color: #64748b; border-bottom: 3px solid transparent; }
+QTabBar::tab:selected { color: #0c857a; border-bottom: 3px solid #0f9c8e; font-weight: 600; }
+QTabBar::tab:disabled { color: #a6b2c0; }
+QPushButton { background: white; border: 1px solid #d7e1eb; border-radius: 7px; padding: 8px 14px; font-weight: 600; }
+QPushButton:hover { background: #e8f4f2; border-color: #7cbfb7; }
+QPushButton#primary { background: #0b877c; color: white; border: 1px solid #0b877c; }
+QPushButton#primary:hover { background: #086f66; }
+QPushButton:disabled { color: #9caabd; background: #edf1f5; }
+QDoubleSpinBox, QComboBox, QLineEdit { background: white; border: 1px solid #d7e1eb; border-radius: 6px; padding: 6px 8px; min-height: 18px; }
+QDoubleSpinBox:focus, QComboBox:focus { border-color: #0f9c8e; }
+QGroupBox { background: white; border: 1px solid #dde5ee; border-radius: 10px; margin-top: 20px; padding: 18px; font-weight: 600; }
+QGroupBox::title { subcontrol-origin: margin; left: 16px; padding: 0 5px; }
+QToolBar { background: white; border: none; spacing: 5px; }
+QToolButton { border-radius: 5px; padding: 4px; }
+QToolButton:hover, QToolButton:checked { background: #e3f3ef; }
+QScrollArea { border: none; background: transparent; }
+QStatusBar { color: #64748b; background: #f1f5f9; }
+QSlider::groove:horizontal { height: 6px; background: #dce8ec; border-radius: 3px; }
+QSlider::sub-page:horizontal { background: #0b9185; border-radius: 3px; }
+QSlider::handle:horizontal { background: #0b877c; width: 16px; margin: -5px 0; border-radius: 8px; }

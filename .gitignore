@@ -1,0 +1,8 @@
+.venv/
+.vendor/
+__pycache__/
+.pytest_cache/
+work/
+*.pyc
+*.xplt
+*.log

@@ -1,0 +1,1 @@
+"""Typed scientific data model."""
