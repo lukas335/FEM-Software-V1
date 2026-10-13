@@ -464,13 +464,17 @@ def domain_materials(params) -> dict[str, MaterialDefinition]:
     cover shell is preserved.
     """
     result: dict[str, MaterialDefinition] = {
-        "measurement_shell": get_material(
-            params.measurement_shell.material_name
-        ),
         "pressure_shell": get_material(
             params.pressure_shell.material_name
         ),
     }
+
+    if params.measurement_definition is not None:
+        from model.measurement_definition import domain_name
+        result = {domain_name(region['id']): get_material(region['material'])
+                  for region in params.measurement_definition['geometry']['regions']} | result
+    else:
+        result = {'measurement_shell': get_material(params.measurement_shell.material_name)} | result
 
     if params.cover_shell.enabled:
         for region in ("front", "rear"):
@@ -529,17 +533,15 @@ def material_snapshot(params) -> dict[str, Any]:
         shell.material_name: asdict(
             get_material(shell.material_name)
         )
-        for shell in (
-            params.measurement_shell,
-            params.pressure_shell,
-        )
+        for shell in ((params.measurement_shell, params.pressure_shell)
+                      if params.measurement_definition is None else (params.pressure_shell,))
     }
 
     result.update(
         {
             name: asdict(material)
             for name, material in domain_materials(params).items()
-            if name.startswith("cover_")
+            if name.startswith("cover_") or (params.measurement_definition is not None and name.startswith('measurement_'))
         }
     )
 

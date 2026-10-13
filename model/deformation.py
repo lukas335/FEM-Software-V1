@@ -55,6 +55,10 @@ def read_mesh(path: Path) -> MeshTopology:
         raise ValueError("Ungültige Knotenkoordinaten.")
     parts = []
     names = ["measurement", "pressure"]
+    imported = [group.get('name') for group in root.findall('./Mesh/Elements')
+                if group.get('name', '').startswith('measurement_') and group.get('name') != 'measurement_shell']
+    if imported:
+        names = imported + ['pressure']
     names += [name for name in ("cover_front", "cover_rear")
               if root.find(f"./Mesh/Surface[@name='{name}_symmetry_0']") is not None]
     for name in names:

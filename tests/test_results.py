@@ -14,7 +14,7 @@ class ResultsTests(unittest.TestCase):
         self.assertEqual((interval.start_mm, interval.end_mm), (.6, 1))
         fit = fit_stiffness(curve, interval.start_mm, interval.end_mm)
         self.assertAlmostEqual(fit.stiffness, 1)
-        self.assertEqual(fit.count, 4)
+        self.assertEqual(fit.count, 2)
         # No contact, isolated spike, too few loaded points, and initial preload.
         for forces in ((0,) * 7, (0, .1, 0, 0, 0, 0, 0),
                        (0, 0, 0, 0, 0, .1, .2), (.1, .2, .3, .4, .5, .6, .7)):
@@ -26,9 +26,11 @@ class ResultsTests(unittest.TestCase):
                            (99, 1.5, 2, 2.5, 99), Path("synthetic.csv"))
         result = fit_stiffness(curve, 0.25, 0.75)
         self.assertAlmostEqual(result.stiffness, 2)
-        self.assertAlmostEqual(result.intercept, 1)
+        self.assertIsNone(result.intercept)
         self.assertAlmostEqual(result.compliance, 0.5)
-        self.assertAlmostEqual(result.r_squared, 1)
+        self.assertAlmostEqual(result.delta_force, 1)
+        self.assertAlmostEqual(result.delta_displacement, 0.5)
+        self.assertIsNone(result.r_squared)
         with self.assertRaises(ValueError):
             fit_stiffness(curve, 0.3, 0.7)
         with self.assertRaises(ValueError):
@@ -48,7 +50,7 @@ class ResultsTests(unittest.TestCase):
             path.write_text(header + "1,0,0.03\n2,1,0.15\n", encoding="utf-8")
             curve = read_force_curve(path)
             self.assertEqual(curve.force_n, (0.03, 0.15))
-            for invalid in ("1,0,nan\n2,1,0.15\n", "1,0,0.03\n2,0,0.15\n", "1,0,0.03\n"):
+            for invalid in ("1,0,nan\n2,1,0.15\n", "1,0,0.03\n"):
                 path.write_text(header + invalid, encoding="utf-8")
                 with self.assertRaises(ValueError):
                     read_force_curve(path)

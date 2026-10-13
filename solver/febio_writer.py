@@ -106,6 +106,10 @@ def write_febio(mesh: WedgeMesh, params: SimulationParameters, destination: Path
 
     materials = _add(root, "Material")
     material_map = domain_materials(params)
+    imported_orient = None
+    if params.measurement_definition is not None:
+        from solver.imported_boundaries import imported_surface_orienter
+        imported_orient = imported_surface_orienter(mesh, params.measurement_definition)
 
     for index, (domain, material) in enumerate(material_map.items(), 1):
         if material.model == "neo_hookean":
@@ -187,10 +191,11 @@ def write_febio(mesh: WedgeMesh, params: SimulationParameters, destination: Path
 
     support_name = "cover_support" if params.cover_shell.enabled else "pressure_support"
     pressure_support = set(mesh.node_sets[support_name])
+    x_only_nodes = set(mesh.node_sets.get('measurement_x_only', ())) if params.measurement_definition is not None else set()
     axis_nodes = sorted(
         node
         for node, (_, y, z) in mesh.nodes.items()
-        if sqrt(y * y + z * z) < 1e-8 and node not in pressure_support
+        if sqrt(y * y + z * z) < 1e-8 and node not in pressure_support and node not in x_only_nodes
     )
     if axis_nodes:
         _add(
@@ -203,7 +208,8 @@ def write_febio(mesh: WedgeMesh, params: SimulationParameters, destination: Path
     for name, triangles in mesh.surfaces.items():
         group = _add(model_mesh, "Surface", name=name)
         for face_index, face in enumerate(triangles, 1):
-            oriented = _oriented_triangle(face, mesh.nodes, name, params)
+            oriented = (imported_orient(face, name) if imported_orient and name.startswith('measurement_')
+                        else _oriented_triangle(face, mesh.nodes, name, params))
             _add(group, "tri3", ",".join(map(str, oriented)), id=str(face_index))
 
     cavity = _add(model_mesh, "Surface", name="fluid_cavity")
@@ -223,6 +229,17 @@ def write_febio(mesh: WedgeMesh, params: SimulationParameters, destination: Path
         pair = _add(model_mesh, "SurfacePair", name="pressure_cover_contact")
         _add(pair, "primary", "pressure_contact")
         _add(pair, "secondary", "cover_inner_surface")
+
+    imported_contacts = []
+    if params.measurement_definition is not None:
+        for interface in params.measurement_definition['geometry']['interfaces']:
+            if interface['condition'] != 'frictionless':
+                continue  # Bonded domains have conformal shared nodes.
+            name = f'measurement_interface_{interface["id"]}'
+            pair = _add(model_mesh, 'SurfacePair', name=name)
+            _add(pair, 'primary', name + '_a')
+            _add(pair, 'secondary', name + '_b')
+            imported_contacts.append(name)
 
     domains = _add(root, "MeshDomains")
     for index, name in enumerate(material_map, 1):
@@ -246,9 +263,14 @@ def write_febio(mesh: WedgeMesh, params: SimulationParameters, destination: Path
     for axis in ("x", "y", "z"):
         _add(fixed, f"{axis}_dof", 1)
 
-    lateral = _add(boundary, "bc", type="zero displacement", node_set="measurement_support")
-    _add(lateral, "y_dof", 1)
-    _add(lateral, "z_dof", 1)
+    if params.measurement_definition is None:
+        lateral = _add(boundary, "bc", type="zero displacement", node_set="measurement_support")
+        _add(lateral, "y_dof", 1)
+        _add(lateral, "z_dof", 1)
+    elif x_only_nodes:
+        lateral = _add(boundary, 'bc', type='zero displacement', node_set='measurement_x_only')
+        _add(lateral, 'y_dof', 1)
+        _add(lateral, 'z_dof', 1)
 
     if axis_nodes:
         axis_fixed = _add(
@@ -277,9 +299,9 @@ def write_febio(mesh: WedgeMesh, params: SimulationParameters, destination: Path
 
     contact = _add(root, "Contact")
     for name in (
-        ["shell_contact", "pressure_cover_contact"]
+        ["shell_contact", "pressure_cover_contact"] + imported_contacts
         if params.cover_shell.enabled
-        else ["shell_contact"]
+        else ["shell_contact"] + imported_contacts
     ):
         sliding = _add(
             contact,

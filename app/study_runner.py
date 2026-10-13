@@ -233,7 +233,8 @@ class StudyRunner(QObject):
         self.changed.emit()
 
         try:
-            worker.start(p, self.febio, directory=directory, compact=True)
+            worker.start(p, self.febio, directory=directory,
+                         compact=False, final_only_visualization=True)
         except (OSError, ValueError, RuntimeError) as exc:
             self._failure(worker, str(exc))
 

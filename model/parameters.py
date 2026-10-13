@@ -117,6 +117,9 @@ class SimulationParameters:
     max_drive_step_mm: float = 0.1
     max_control_trials: int = 200
     cover_shell: CoverShellParameters = field(default_factory=CoverShellParameters)
+    # None retains the historical R/tx/ty construction. Embedded snapshot,
+    # not a file path: GUI, CLI and resumed runs see identical geometry.
+    measurement_definition: dict | None = None
 
     def __post_init__(self):
         # Compatibility for older Python callers as well as saved JSON.
@@ -142,7 +145,12 @@ class SimulationParameters:
         return result
 
     def validate(self) -> list[str]:
-        errors = self.measurement_shell.validate() + self.pressure_shell.validate()
+        if self.measurement_definition is None:
+            errors = self.measurement_shell.validate()
+        else:
+            from model.measurement_definition import definition_errors
+            errors = definition_errors(self.measurement_definition)
+        errors += self.pressure_shell.validate()
         errors.extend(self.cover_shell.validate())
         if self.cover_shell.enabled and self.initial_gap_mm <= self.cover_shell.thickness_x_mm:
             errors.append("Anfangsspalt muss größer als Deckschalen-Pol-Dicke tx sein (plus Druckausdehnung).")
@@ -160,7 +168,7 @@ class SimulationParameters:
             errors.append("Die maximale Versuchszahl muss zwischen 1 und 10.000 liegen.")
         if not isinstance(self.constant_pressure, bool):
             errors.append("Konstanter Druck muss ein boolescher Wert sein.")
-        if self.measurement_shell.material_name == "sclera_demo":
+        if self.measurement_definition is None and self.measurement_shell.material_name == "sclera_demo":
             errors.append("Das Sklera-Modell ist derzeit nur für die Druckschale vorgesehen.")
         if not isfinite(self.initial_gap_mm) or self.initial_gap_mm < 0:
             errors.append("Der Anfangsspalt muss endlich und nicht negativ sein.")

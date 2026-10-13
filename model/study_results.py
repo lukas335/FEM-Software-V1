@@ -8,6 +8,7 @@ import numpy as np
 
 from model.results import ForceCurve, automatic_fit_range, read_force_curve
 from model.study import StudyConfig
+from model.study_metrics import stiffness_groups
 
 
 def analyze_curve(curve: ForceCurve, config: StudyConfig, *, fit_bounds=None) -> dict:
@@ -15,40 +16,30 @@ def analyze_curve(curve: ForceCurve, config: StudyConfig, *, fit_bounds=None) ->
     ordered = sorted(zip(curve.displacement_mm, curve.force_n))
     x = np.asarray([point[0] for point in ordered]) - contact.contact_mm
     y = np.asarray([point[1] for point in ordered])
-    if fit_bounds is not None:
-        a, b = fit_bounds
-    elif config.fit_mode == "automatic":
-        a, b = contact.start_mm - contact.contact_mm, x[-1]
-    else:
-        a, b = config.fit_start_after_contact_mm, config.fit_end_after_contact_mm
+    # Each run owns its own first-contact and final-contact point.  A shared
+    # fit window across pressures would silently change both delta values and
+    # is not used for endpoint stiffness.
+    a, b = contact.start_mm - contact.contact_mm, x[-1]
     if b <= a:
         raise ValueError("Kein gemeinsamer belasteter Fitbereich vorhanden.")
     if x[0] > a or x[-1] < b:
-        raise ValueError(f"Fitende δ={b:g} mm nicht erreicht (verfügbar: {x[-1]:.4f} mm). Hub erhöhen.")
-    count = int(((x >= a) & (x <= b)).sum())
-    if count < config.minimum_fit_points:
-        raise ValueError(f"Nur {count} originale Fitpunkte; mindestens {config.minimum_fit_points} erforderlich.")
-    # Exact integration of the piecewise-linear force curve: 2-point Gauss
-    # quadrature per segment integrates all degree-2 least-squares terms exactly.
-    knots = np.r_[a, x[(x > a) & (x < b)], b]
-    half = np.diff(knots) / 2
-    mid = (knots[1:] + knots[:-1]) / 2
-    q = np.column_stack((mid - half / np.sqrt(3), mid + half / np.sqrt(3))).ravel()
-    weights = np.repeat(half, 2)
-    force = np.interp(q, x, y)
-    mean_x, mean_y = np.average(q, weights=weights), np.average(force, weights=weights)
-    k = np.sum(weights * (q - mean_x) * (force - mean_y)) / np.sum(weights * (q - mean_x)**2)
-    intercept = mean_y - k * mean_x
-    residual = np.sum(weights * (force - (k * q + intercept))**2)
-    total = np.sum(weights * (force - mean_y)**2)
-    r2 = float(1 - residual / total) if total > 1e-30 else None
+        raise ValueError(f"Endpunkt δ={b:g} mm nicht erreicht (verfügbar: {x[-1]:.4f} mm). Hub erhöhen.")
+    indices = np.flatnonzero((x >= a) & (x <= b))
+    if len(indices) < 2:
+        raise ValueError("Mindestens zwei Endpunkte für die Steifigkeitsauswertung nötig.")
+    first, last = int(indices[0]), int(indices[-1])
+    delta_u = float(x[last] - x[first])
+    delta_f = float(y[last] - y[first])
+    if delta_u <= 0:
+        raise ValueError("Die Endpunkt-Verschiebung muss zunehmen.")
+    k = delta_f / delta_u
     warnings = []
     if k <= 0:
         warnings.append("Keine positive Steifigkeit")
-    if r2 is None or r2 < 0.98:
-        warnings.append("Fit nicht annähernd linear (R² < 0,98)")
-    return {"stiffness": float(k), "intercept": float(intercept), "r_squared": r2,
-        "rmse_n": float(np.sqrt(residual / weights.sum())), "count": count,
+    return {"stiffness": float(k), "intercept": None, "r_squared": None,
+        "delta_force_n": delta_f, "delta_displacement_mm": delta_u,
+        "first_contact_force_n": float(y[first]), "last_contact_force_n": float(y[last]),
+        "count": 2,
         "contact_mm": contact.contact_mm, "contact_lower_mm": contact.lower_mm,
         "contact_upper_mm": contact.upper_mm, "fit_start_delta_mm": a, "fit_end_delta_mm": b,
         "max_force_n": float(y.max()), "warnings": warnings}
@@ -56,6 +47,12 @@ def analyze_curve(curve: ForceCurve, config: StudyConfig, *, fit_bounds=None) ->
 
 def check_preload(log_path: Path):
     """Require a contact-pressure record at every saved preload time."""
+    # Successful runs may have their large FEBio log removed by the storage
+    # cleanup.  The exported force, cavity and nodal histories are then the
+    # authoritative post-processing inputs; absence of this optional
+    # diagnostic log must not invalidate the completed result.
+    if not log_path.is_file():
+        return
     root = ET.parse(log_path.with_name("model.feb")).getroot()
     if root.find("./Output/logfile/face_data[@name='contact_state']") is None:
         from solver.accepted_history import read_records, check_separated_preload
@@ -157,6 +154,7 @@ def refresh_automatic_fits(cases, config, run_path):
 
 
 def rank_geometries(cases: list[dict], config: StudyConfig) -> list[dict]:
+    stiffness_comparisons = stiffness_groups(cases, config)
     provisional = config.fit_mode == "automatic" and any(c["status"] in ("pending", "running") for c in cases)
     grouped = {}
     for case in cases:
@@ -188,5 +186,10 @@ def rank_geometries(cases: list[dict], config: StudyConfig) -> list[dict]:
             "pressures": p, "end_drives": drives, "delta_end_drive_mm": s,
             "stiffnesses": [], "status": status, "complete": complete,
             "preferred": bool(monotonic and not warnings and not provisional), "provisional": provisional,
-            "cases": [c["id"] for c in group]})
+            "cases": [c["id"] for c in group],
+            **{key: value for key, value in stiffness_comparisons[(radius, tx, ty)].items()
+               if key in ('reference_pressure_mmhg', 'comparison_pressure_mmhg', 'reference_stiffness',
+                          'comparison_stiffness', 'relative_stiffness_change_pct')},
+            'stiffness_comparison_status': stiffness_comparisons[(radius, tx, ty)]['status'],
+            'stiffness_comparison_notes': stiffness_comparisons[(radius, tx, ty)]['notes']})
     return sorted(rows, key=lambda r: (r["relative_change"] is None, -(r["relative_change"] or 0)))

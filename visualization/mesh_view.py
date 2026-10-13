@@ -12,6 +12,12 @@ from model.deformation import MeshTopology, DeformationHistory, read_deformation
 
 
 class MeshView(FigureCanvasQTAgg):
+    # Matplotlib becomes disproportionately expensive when every element of a
+    # fine FEBio mesh is drawn.  This is only a display limit: the complete
+    # mesh and all displacement values remain loaded and are used for the
+    # numerical results.
+    MAX_DISPLAY_TRIANGLES_PER_PART = 12000
+
     def __init__(self):
         super().__init__(Figure(figsize=(10, 6), facecolor="white", layout="constrained"))
         self.ax, self.detail_ax = self.figure.subplots(1, 2, gridspec_kw={"width_ratios": [1, 1.1]})
@@ -37,7 +43,7 @@ class MeshView(FigureCanvasQTAgg):
                      transform=self.ax.transAxes, color="#64748b", fontsize=10, wrap=True)
         self.draw_idle()
 
-    def load_mesh(self, path: Path):
+    def load_mesh(self, path: Path, *, reference_only: bool = False):
         try:
             mesh = read_mesh(path)
         except (OSError, ET.ParseError, ValueError, KeyError, TypeError) as exc:
@@ -52,6 +58,13 @@ class MeshView(FigureCanvasQTAgg):
         self.fixed_indices = np.flatnonzero(np.isin(mesh.node_ids, list(fixed_ids)))
         self.history = None
         self.time = 0.0
+        if reference_only:
+            self.fixed_indices = np.array([], dtype=int)
+            self.message = 'Tatsächlich exportiertes, unverformtes Eingabenetz'
+            self._build_artists()
+            self.reset_view()
+            self.set_time(0)
+            return
         try:
             self.history = read_deformation(path.with_name("nodal_displacements.csv"), mesh)
             self.message = f"{len(self.history.times)} Zustände inkl. Referenz · tatsächliche Knotenverschiebungen"
@@ -77,7 +90,7 @@ class MeshView(FigureCanvasQTAgg):
         self.artists.clear()
         self.reference_artists.clear()
         reference = self._project(self.mesh.coordinates)
-        colors = ("#0b9687", "#4f70cf", "#e5a12e", "#a66bba")
+        colors = ("#0b9687", "#4f70cf", "#e5a12e", "#a66bba", "#69889b", "#c26677")
         names = ("Messschale", "Druckkörper", "Deckschale vorne", "Deckschale hinten")
         for ax, title in ((self.ax, "Gesamtmodell"), (self.detail_ax, "Kontaktzone · Detail")):
             ax.clear()
@@ -93,20 +106,39 @@ class MeshView(FigureCanvasQTAgg):
             ax.tick_params(colors="#64748b", labelsize=8, length=0)
             for spine in ax.spines.values():
                 spine.set_visible(False)
-            for part, color, name in zip(self.mesh.parts, colors, names):
-                ghost = LineCollection(self._mirrored(reference, part.edges), colors="#94a3b8",
+            labels = dict(measurement='Messschale', pressure='Druckkörper',
+                          cover_front='Deckschale vorne', cover_rear='Deckschale hinten')
+            for index, part in enumerate(self.mesh.parts):
+                color = colors[index % len(colors)]
+                name = labels.get(part.name, 'Messschale ' + part.name.removeprefix('measurement_'))
+                triangles = part.triangles
+                if len(triangles) > self.MAX_DISPLAY_TRIANGLES_PER_PART:
+                    # Evenly spaced deterministic sampling keeps the visual
+                    # coverage uniform and avoids a different picture between
+                    # runs.  No simulation data is discarded.
+                    sample = np.linspace(0, len(triangles) - 1,
+                                         self.MAX_DISPLAY_TRIANGLES_PER_PART,
+                                         dtype=int)
+                    triangles = triangles[sample]
+                    edges = {tuple(sorted((a, b)))
+                             for tri in triangles
+                             for a, b in zip(tri, tri[1:] + tri[:1])}
+                    edges = np.asarray(sorted(edges), dtype=int)
+                else:
+                    edges = part.edges
+                ghost = LineCollection(self._mirrored(reference, edges), colors="#94a3b8",
                                        linewidths=0.5, alpha=0.35, linestyle="dashed")
                 ghost.set_visible(self.reference_visible)
                 ax.add_collection(ghost)
                 self.reference_artists.append(ghost)
-                fill = PolyCollection(self._mirrored(reference, part.triangles),
+                fill = PolyCollection(self._mirrored(reference, triangles),
                                       facecolors=color, edgecolors="none", alpha=0.13)
-                edges = LineCollection(self._mirrored(reference, part.edges), colors=color,
+                edge_artist = LineCollection(self._mirrored(reference, edges), colors=color,
                                        linewidths=0.8, alpha=0.95, label=name)
                 ax.add_collection(fill)
-                ax.add_collection(edges)
-                self.artists.append((part, fill, edges))
-                fixed_edges = part.edges[np.isin(part.edges, self.fixed_indices).all(axis=1)]
+                ax.add_collection(edge_artist)
+                self.artists.append((triangles, edges, fill, edge_artist))
+                fixed_edges = edges[np.isin(edges, self.fixed_indices).all(axis=1)]
                 if len(fixed_edges):
                     ax.add_collection(LineCollection(self._mirrored(reference, fixed_edges),
                                                      colors="#64748b", linewidths=1.0,
@@ -124,8 +156,11 @@ class MeshView(FigureCanvasQTAgg):
         radius = np.hypot(positions[:, :, 1], positions[:, :, 2]).max()
         self.ax.set_xlim(xlo - 2, xhi + 2)
         self.ax.set_ylim(-radius * 1.12, radius * 1.12)
-        measurement = coordinates[np.unique(self.mesh.parts[0].triangles)]
-        contact_part = next((part for part in self.mesh.parts if part.name == "cover_front"), self.mesh.parts[1])
+        measurement_indices = np.unique(np.concatenate([part.triangles.ravel() for part in self.mesh.parts
+                                      if part.name.startswith('measurement')]))
+        measurement = coordinates[measurement_indices]
+        contact_part = next((part for part in self.mesh.parts if part.name == "cover_front"),
+                            next(part for part in self.mesh.parts if part.name == 'pressure'))
         pressure = coordinates[np.unique(contact_part.triangles)]
         center = (measurement[:, 0].max() + pressure[:, 0].min()) / 2
         half_height = max(1.0, measurement[:, 1].max() * 0.75)
@@ -152,8 +187,8 @@ class MeshView(FigureCanvasQTAgg):
         displacement = (self.history.at_time(time) if self.history is not None
                         else np.zeros_like(self.mesh.coordinates))
         projection = self._project(self.mesh.coordinates + self.scale * displacement)
-        for part, fill, edges in self.artists:
-            fill.set_verts(self._mirrored(projection, part.triangles))
-            edges.set_segments(self._mirrored(projection, part.edges))
+        for triangles, edges, fill, edge_artist in self.artists:
+            fill.set_verts(self._mirrored(projection, triangles))
+            edge_artist.set_segments(self._mirrored(projection, edges))
         self.draw_idle()
         return float(np.linalg.norm(displacement, axis=1).max())

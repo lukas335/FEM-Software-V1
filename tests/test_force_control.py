@@ -87,6 +87,10 @@ class ForceControlTests(unittest.TestCase):
                   "approach_step_mm", "min_drive_step_mm", "max_drive_step_mm", "max_control_trials")
         for name in fields:
             legacy.pop(name)
+        legacy.pop('measurement_definition')  # Old snapshots predate optional editor imports.
+        legacy.pop('cover_shell')  # Disabled cover did not exist in the old two-body snapshot.
+        legacy['measurement_shell']['thickness_mm'] = legacy['measurement_shell'].pop('thickness_x_mm')
+        legacy['measurement_shell'].pop('thickness_y_mm')
         self.assertEqual(SimulationParameters.from_dict(legacy), p)
         cfg = StudyConfig(p, (8.,), (1.25,), (15.,), (), pressure_mode="closed")
         expected = sha256(json.dumps(legacy, sort_keys=True, allow_nan=False).encode()).hexdigest()[:16]
@@ -110,7 +114,8 @@ class ForceControlTests(unittest.TestCase):
         from PySide6.QtWidgets import QApplication
         from app.main_window import MainWindow
         app = QApplication.instance() or QApplication([])
-        window = MainWindow()
+        project = TemporaryDirectory()
+        window = MainWindow(Path(project.name))
         try:
             window.drive_control.restore(self.params())
             self.assertEqual(window.parameters().drive_control, "target_force")
@@ -126,6 +131,7 @@ class ForceControlTests(unittest.TestCase):
             window.close()
             window.deleteLater()
             app.processEvents()
+            project.cleanup()
 
     @unittest.skipUnless(os.environ.get("FEM_RUN_TARGET_FORCE_TESTS") == "1", "opt-in real FEBio run")
     def test_real_constant_pressure_target_with_rollback(self):

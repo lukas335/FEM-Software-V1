@@ -26,7 +26,12 @@ class GeometryPreview(FigureCanvasQTAgg):
         ax.clear()
         ax.set_aspect("equal")
         ax.set_axis_off()
-        errors = params.measurement_shell.validate() + params.pressure_shell.validate() + params.cover_shell.validate()
+        if params.measurement_definition is not None:
+            from model.measurement_definition import definition_errors
+            errors = definition_errors(params.measurement_definition, require_drive=False)
+        else:
+            errors = params.measurement_shell.validate()
+        errors += params.pressure_shell.validate() + params.cover_shell.validate()
         if errors:
             ax.text(0.5, 0.5, "\n".join(errors), transform=ax.transAxes, ha="center", wrap=True)
             self.draw_idle()
@@ -37,10 +42,30 @@ class GeometryPreview(FigureCanvasQTAgg):
         cover = params.cover_shell
         cover_bounds = None
         overlap = False
+        imported_paths = []
+        imported_left = None
+        if params.measurement_definition is not None:
+            from model.measurement_definition import preview_regions
+            regions = preview_regions(params.measurement_definition)
+            for index, (region, vertices) in enumerate(regions):
+                color = ('#0b9185', '#d58c32', '#8a68b9', '#4f70cf')[index % 4]
+                for sign in (1, -1):
+                    patch = Polygon(np.asarray(vertices) * (1, sign), facecolor=color, edgecolor=color, alpha=.75)
+                    ax.add_patch(patch)
+                    imported_paths.append(patch.get_path())
+            all_points = np.asarray([point for _, vertices in regions for point in vertices])
+            imported_left = float(all_points[:, 0].min())
+            radius1 = max(1.0, -imported_left)
+            height = max(height, float(all_points[:, 1].max()))
+            labels = '\n'.join(f"{region.get('name', region['id'])}: {MATERIALS[region['material']].name}" for region, _ in regions)
+            ax.text(.02, .99, 'Importierte Messschale\n' + labels, transform=ax.transAxes, va='top', fontsize=9, color='#0b9185')
+            ax.plot(0, 0, 'o', color='#0b9185', markersize=4)
         for shell, center, direction, color, name in (
             (params.measurement_shell, -radius1, 1, "#0b9185", "Messschale"),
             (params.pressure_shell, radius2 + gap, -1, "#4285c5", "Druckkugel"),
         ):
+            if direction == 1 and params.measurement_definition is not None:
+                continue
             angles = (np.linspace(0, 2 * np.pi, 361) if direction == -1
                       else np.linspace(-np.pi / 2, np.pi / 2, 181))
             outer = shell.radius_mm
@@ -89,7 +114,8 @@ class GeometryPreview(FigureCanvasQTAgg):
                 for sign in (1, -1):
                     vertices = np.asarray(region["polygon"]) * (1, sign)
                     patch = Polygon(vertices, facecolor=region_color, edgecolor=region_color, alpha=.6)
-                    overlap |= patch.get_path().intersects_path(measurement_path, filled=True)
+                    overlap |= any(patch.get_path().intersects_path(path, filled=True)
+                                   for path in (imported_paths or [measurement_path]))
                     ax.add_patch(patch)
                     if region["name"] == "rear":
                         outer = np.asarray(region["outer"]) * (1, sign)
@@ -155,6 +181,8 @@ class GeometryPreview(FigureCanvasQTAgg):
         ax.text(-radius1 * 0.5, -height * 0.98, f"{drive_label} {params.max_displacement_mm:g} mm",
                 ha="center", color="#0b9185", fontsize=10)
         left, right = -radius1, gap + 2 * radius2
+        if imported_left is not None:
+            left = min(left, imported_left)
         if cover_bounds is not None:
             left, right = min(left, cover_bounds[0]), max(right, cover_bounds[1])
         ax.set_xlim(left - height * 0.35, right + height * 0.35)

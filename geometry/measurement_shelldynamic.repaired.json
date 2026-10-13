@@ -1,0 +1,543 @@
+{
+  "version": 2,
+  "parameters": {
+    "ty": {
+      "value": 3.4000000000000004,
+      "unit": "mm",
+      "type": "float",
+      "study_variable": false,
+      "values": null,
+      "minimum": null,
+      "maximum": null
+    },
+    "tx": {
+      "value": 2.378485444170428,
+      "unit": "mm",
+      "type": "float",
+      "study_variable": false,
+      "values": null,
+      "minimum": null,
+      "maximum": null
+    },
+    "r_sens": {
+      "value": 2.0813483508434243,
+      "unit": "mm",
+      "type": "float",
+      "study_variable": false,
+      "values": null,
+      "minimum": null,
+      "maximum": null
+    },
+    "R_outer": {
+      "value": 8,
+      "unit": "mm",
+      "type": "float",
+      "study_variable": false,
+      "values": null,
+      "minimum": null,
+      "maximum": null
+    }
+  },
+  "geometry": {
+    "points": [
+      {
+        "id": "p001",
+        "x": 2.5263157894736845,
+        "y": 0
+      },
+      {
+        "id": "p002",
+        "x": 10.526315789473685,
+        "y": 0
+      },
+      {
+        "id": "p003",
+        "x": 2.5263157894736845,
+        "y": 8
+      },
+      {
+        "id": "p004",
+        "x": 2.9263157894736853,
+        "y": 0
+      },
+      {
+        "id": "p005",
+        "x": 7.526315789473685,
+        "y": 0
+      },
+      {
+        "id": "p006",
+        "x": 2.9263157894736853,
+        "y": 4.6
+      },
+      {
+        "id": "p007",
+        "x": 1.3892427660811435,
+        "y": 4.6
+      },
+      {
+        "id": "p008",
+        "x": 1.9628758345698158,
+        "y": 3.7728531855955683
+      },
+      {
+        "id": "p009",
+        "x": 1.9628758345698158,
+        "y": 3.7728531855955683
+      },
+      {
+        "id": "p010",
+        "x": 1.5973815209546796,
+        "y": 3.7728531855955683
+      },
+      {
+        "id": "p011",
+        "x": 1.0470914127423823,
+        "y": 8
+      },
+      {
+        "id": "p012",
+        "x": 1.0470914127423823,
+        "y": 4.6
+      },
+      {
+        "id": "p013",
+        "x": 2.9263157894736853,
+        "y": 4.5872576177285325
+      },
+      {
+        "id": "p014",
+        "x": 6.066481994459833,
+        "y": 0
+      },
+      {
+        "id": "p015",
+        "x": 6.714681440443212,
+        "y": 1.9778393351800552
+      },
+      {
+        "id": "p016",
+        "x": 8.147830345303257,
+        "y": 0
+      },
+      {
+        "id": "p017",
+        "x": 7.175873152870664,
+        "y": 1.7610400947163345
+      },
+      {
+        "id": "p018",
+        "x": 6.066481994459833,
+        "y": 2.0813483508434243
+      },
+      {
+        "id": "p019",
+        "x": 3.8325730828643607,
+        "y": 2.0813483508434243
+      },
+      {
+        "id": "p020",
+        "x": -0.6307479224376725,
+        "y": 9.174515235457054
+      },
+      {
+        "id": "p021",
+        "x": -3.516897506925204,
+        "y": 9.174515235457054
+      },
+      {
+        "id": "p022",
+        "x": -1.337950138504154,
+        "y": 2.0813483508434243
+      },
+      {
+        "id": "p023",
+        "x": -1.337950138504154,
+        "y": 5.065096952908582
+      },
+      {
+        "id": "p024",
+        "x": -2.1598337950138484,
+        "y": 5.065096952908582
+      },
+      {
+        "id": "p025",
+        "x": -2.1598337950138484,
+        "y": 2.2936288088642636
+      },
+      {
+        "id": "p026",
+        "x": 1.6628808864265912,
+        "y": 4.6
+      },
+      {
+        "id": "p027",
+        "x": 1.6628808864265912,
+        "y": 8
+      },
+      {
+        "id": "p028",
+        "x": -2.1598337950138484,
+        "y": 2.044321329639887
+      },
+      {
+        "id": "p029",
+        "x": -3.689750692520772,
+        "y": 2.044321329639887
+      },
+      {
+        "id": "p030",
+        "x": -3.689750692520772,
+        "y": 0
+      }
+    ],
+    "elements": [
+      {
+        "id": "A001",
+        "kind": "arc",
+        "center_point": "p001",
+        "start_point": "p002",
+        "end_point": "p003",
+        "radius": 8,
+        "sweep_angle": 90,
+        "construction": false
+      },
+      {
+        "id": "L003",
+        "kind": "line",
+        "start_point": "p016",
+        "end_point": "p002",
+        "orientation": "horizontal",
+        "construction": false
+      },
+      {
+        "id": "A003",
+        "kind": "arc",
+        "center_point": "p014",
+        "start_point": "p017",
+        "end_point": "p016",
+        "radius": 2.0813483508434243,
+        "sweep_angle": -57.790565283071885,
+        "construction": false
+      },
+      {
+        "id": "A004",
+        "kind": "arc",
+        "center_point": "p004",
+        "start_point": "p017",
+        "end_point": "p006",
+        "radius": 4.6,
+        "sweep_angle": 67.49061219132281,
+        "construction": false
+      },
+      {
+        "id": "A005",
+        "kind": "arc",
+        "center_point": "p014",
+        "start_point": "p017",
+        "end_point": "p018",
+        "radius": 2.0813483508434243,
+        "sweep_angle": 32.209434716928136,
+        "construction": false
+      },
+      {
+        "id": "L001",
+        "kind": "line",
+        "start_point": "p018",
+        "end_point": "p022",
+        "orientation": "horizontal",
+        "construction": false
+      },
+      {
+        "id": "L002",
+        "kind": "line",
+        "start_point": "p022",
+        "end_point": "p023",
+        "orientation": "vertical",
+        "construction": false
+      },
+      {
+        "id": "L004",
+        "kind": "line",
+        "start_point": "p023",
+        "end_point": "p024",
+        "orientation": "horizontal",
+        "construction": false
+      },
+      {
+        "id": "L005",
+        "kind": "line",
+        "start_point": "p006",
+        "end_point": "p026",
+        "orientation": "free",
+        "construction": false
+      },
+      {
+        "id": "L006",
+        "kind": "line",
+        "start_point": "p026",
+        "end_point": "p027",
+        "orientation": "vertical",
+        "construction": false
+      },
+      {
+        "id": "L007",
+        "kind": "line",
+        "start_point": "p027",
+        "end_point": "p003",
+        "orientation": "horizontal",
+        "construction": false
+      },
+      {
+        "id": "L008",
+        "kind": "line",
+        "start_point": "p024",
+        "end_point": "p028",
+        "orientation": "vertical",
+        "construction": false
+      },
+      {
+        "id": "L009",
+        "kind": "line",
+        "start_point": "p028",
+        "end_point": "p029",
+        "orientation": "horizontal",
+        "construction": false
+      },
+      {
+        "id": "L010",
+        "kind": "line",
+        "start_point": "p029",
+        "end_point": "p030",
+        "orientation": "vertical",
+        "construction": false
+      },
+      {
+        "id": "L011",
+        "kind": "line",
+        "start_point": "p030",
+        "end_point": "p016",
+        "orientation": "horizontal",
+        "construction": false
+      }
+    ],
+    "constraints": [
+      {
+        "id": "C005",
+        "type": "horizontal",
+        "references": [
+          "L003"
+        ],
+        "driving": true
+      },
+      {
+        "id": "C001",
+        "type": "horizontal",
+        "references": [
+          "L001"
+        ],
+        "driving": true
+      },
+      {
+        "id": "C002",
+        "type": "vertical",
+        "references": [
+          "L002"
+        ],
+        "driving": true
+      },
+      {
+        "id": "C003",
+        "type": "horizontal",
+        "references": [
+          "L004"
+        ],
+        "driving": true
+      },
+      {
+        "id": "C004",
+        "type": "horizontal",
+        "references": [
+          "L005"
+        ],
+        "driving": true
+      },
+      {
+        "id": "C007",
+        "type": "vertical",
+        "references": [
+          "L006"
+        ],
+        "driving": true
+      },
+      {
+        "id": "C008",
+        "type": "horizontal",
+        "references": [
+          "L007"
+        ],
+        "driving": true
+      },
+      {
+        "id": "C009",
+        "type": "tangent",
+        "references": [
+          "A001",
+          "L007"
+        ],
+        "driving": true
+      },
+      {
+        "id": "C010",
+        "type": "tangent",
+        "references": [
+          "L005",
+          "A004"
+        ],
+        "driving": true
+      },
+      {
+        "id": "C011",
+        "type": "vertical",
+        "references": [
+          "L008"
+        ],
+        "driving": true
+      },
+      {
+        "id": "C012",
+        "type": "horizontal",
+        "references": [
+          "L009"
+        ],
+        "driving": true
+      },
+      {
+        "id": "C013",
+        "type": "vertical",
+        "references": [
+          "L010"
+        ],
+        "driving": true
+      },
+      {
+        "id": "C014",
+        "type": "horizontal",
+        "references": [
+          "L011"
+        ],
+        "driving": true
+      }
+    ],
+    "dimensions": [
+      {
+        "id": "D002",
+        "type": "point_vertical",
+        "references": [
+          "p022"
+        ],
+        "value": 2.0813483508434243,
+        "unit": "mm",
+        "driving": true,
+        "display_position": [
+          -0.668975069252077,
+          2.0813483508434243
+        ]
+      },
+      {
+        "id": "D004",
+        "type": "length",
+        "references": [
+          "L008"
+        ],
+        "value": 3.020775623268695,
+        "unit": "mm",
+        "driving": true,
+        "display_position": [
+          -3.07479224376731,
+          3.5547091412742344
+        ],
+        "axis": "vertical"
+      },
+      {
+        "id": "D003",
+        "type": "length",
+        "references": [
+          "L006"
+        ],
+        "value": 3.4000000000000004,
+        "unit": "mm",
+        "driving": true,
+        "parameter": "ty",
+        "display_position": [
+          0.5817174515235451,
+          6.3
+        ],
+        "axis": "vertical"
+      },
+      {
+        "id": "D005",
+        "type": "length",
+        "references": [
+          "L003"
+        ],
+        "value": 2.378485444170428,
+        "unit": "mm",
+        "driving": true,
+        "parameter": "tx",
+        "display_position": [
+          9.33707306738847,
+          -0.84764542936288
+        ],
+        "axis": "horizontal"
+      },
+      {
+        "id": "D006",
+        "type": "radius",
+        "references": [
+          "A003"
+        ],
+        "value": 2.0813483508434243,
+        "unit": "mm",
+        "driving": true,
+        "parameter": "r_sens",
+        "display_position": [
+          8.110803324099715,
+          2.044321329639887
+        ]
+      },
+      {
+        "id": "D001",
+        "type": "radius",
+        "references": [
+          "A001"
+        ],
+        "value": 8,
+        "unit": "mm",
+        "driving": true,
+        "parameter": "R_outer",
+        "display_position": [
+          9.390581717451514,
+          5.83379501385041
+        ]
+      },
+      {
+        "id": "D007",
+        "type": "length",
+        "references": [
+          "L004"
+        ],
+        "value": 0.8218836565096945,
+        "unit": "mm",
+        "driving": true,
+        "display_position": [
+          -1.7488919667590013,
+          6.315789473684204
+        ],
+        "axis": "horizontal"
+      }
+    ],
+    "regions": [],
+    "interfaces": []
+  }
+}

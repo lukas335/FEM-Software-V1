@@ -1,0 +1,32 @@
+{
+  "units": "mm",
+  "default_material": "silicone_A30",
+  "sensor_tip": {
+    "layer": "MS_SENSOR_TIP"
+  },
+  "regions": [
+    {
+      "layer": "MS_MATERIAL_BOUNDARY_01",
+      "name": "Messschalenbereich 1",
+      "material": "silicone_A30"
+    },
+    {
+      "layer": "MS_MATERIAL_BOUNDARY_02",
+      "name": "Messschalenbereich 2",
+      "material": "ecoflex_00_30"
+    }
+  ],
+  "parameters": {
+    "inner_radius": {
+      "value": 8.0,
+      "unit": "mm",
+      "study_variable": true,
+      "values": [7.5, 8.0, 8.5]
+    },
+    "wall_thickness": {
+      "value": 2.0,
+      "unit": "mm",
+      "study_variable": false
+    }
+  }
+}

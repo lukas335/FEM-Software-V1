@@ -28,6 +28,8 @@ class SimulationRunner(QObject):
     succeeded = Signal(object)
     failed = Signal(str)
     busy_changed = Signal(bool)
+    mesh_ready = Signal(object)
+    prepared = Signal(object)
 
     def __init__(self, project_root: Path, parent=None):
         super().__init__(parent)
@@ -41,20 +43,25 @@ class SimulationRunner(QObject):
         self.directory: Path | None = None
         self.output = ""
         self._pending = ""
+        self.generate_only = False
+        self._mesh_announced = False
 
-    def start(self, params: SimulationParameters, febio: Path, *, directory: Path | None = None, compact: bool = False):
+    def start(self, params: SimulationParameters, febio: Path | None, *, directory: Path | None = None,
+              compact: bool = False, final_only_visualization: bool = False, generate_only: bool = False):
         if self.busy:
             raise RuntimeError("Eine Simulation läuft bereits.")
         if errors := params.validate():
             raise ValueError(" ".join(errors))
-        if not febio.is_file():
+        if not generate_only and (febio is None or not febio.is_file()):
             raise ValueError("FEBio wurde nicht gefunden. Bitte Solver auswählen.")
-        directory = directory or self.project_root / "work/simulations" / (
+        directory = directory or self.project_root / ("work/mesh_previews" if generate_only else "work/simulations") / (
             datetime.now().strftime("run_%Y%m%d_%H%M%S_") + uuid4().hex[:8])
         directory.mkdir(parents=True, exist_ok=False)
         snapshot = directory / "parameters.json"
         snapshot.write_text(json.dumps(asdict(params), indent=2, allow_nan=False), encoding="utf-8")
         self.directory = directory
+        self.generate_only = generate_only
+        self._mesh_announced = False
         self.output = self._pending = ""
         environment = QProcessEnvironment.systemEnvironment()
         vendor = self.project_root / ".vendor"
@@ -68,11 +75,14 @@ class SimulationRunner(QObject):
             python = python.with_name("python.exe")
         self.busy = True
         self.busy_changed.emit(True)
-        self.progress.emit("Simulation wird gestartet …")
+        self.progress.emit("Netzprüfung wird gestartet …" if generate_only else "Simulation wird gestartet …")
         arguments = ["-u", "-m", "solver.prototype", "--parameters", str(snapshot),
-                     "--febio", str(febio.resolve()), "--output", str(directory)]
+                     "--output", str(directory)]
+        arguments += ["--generate-only"] if generate_only else ["--febio", str(febio.resolve())]
         if compact:
             arguments.append("--compact")
+        elif final_only_visualization:
+            arguments.append("--final-only-visualization")
         self.process.start(str(python), arguments)
 
     def _read_output(self):
@@ -82,6 +92,9 @@ class SimulationRunner(QObject):
         while "\n" in self._pending:
             line, self._pending = self._pending.split("\n", 1)
             if line.startswith("STATUS: "):
+                if line.strip() == 'STATUS: Eingabenetz bereit' and not self._mesh_announced:
+                    self._mesh_announced = True
+                    self.mesh_ready.emit(self.directory / 'model.feb')
                 self.progress.emit(line[8:].strip())
 
     def _end(self):
@@ -110,6 +123,12 @@ class SimulationRunner(QObject):
                     raise ValueError(f"{summary} (Exit {exit_code}). Logs: {self.directory}")
                 raise ValueError(f"Solverlauf fehlgeschlagen (Exit {exit_code}).\n{self.output[-5000:]}")
             metadata = json.loads((self.directory / "case.json").read_text(encoding="utf-8"))
+            if self.generate_only:
+                path = self.directory / 'model.feb'
+                read_mesh(path)
+                self._end()
+                self.prepared.emit(path)
+                return
             if metadata.get("febio_status") not in ("success", "partial"):
                 raise ValueError("Der Solverlauf ist nicht erfolgreich abgeschlossen.")
             curve_path = self.directory / "force_displacement.csv"

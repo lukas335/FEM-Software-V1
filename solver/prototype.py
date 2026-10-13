@@ -46,10 +46,11 @@ def parse_reaction_log(path: Path, expected_nodes: set[int], wedge_angle_deg: fl
                        displacement_node: int | None = None) -> list[tuple[float, float, float]]:
     """Return (time, relative indentation mm, full-rotation reaction N).
 
-    With ``displacement_node`` set, the positive indentation is the mean ux of
-    the rear-edge/support nodes minus the inner-pole ux. The latter moves in
-    negative x during indentation, so this convention produces a positive
-    increasing indentation distance.
+    With ``displacement_node`` set, delta x is the mean actual ux of the
+    prescribed drive nodes minus ux of the selected measurement reference.
+    The legacy reference is the inner pole; imported sketches may select any
+    contour vertex and its material domain. This is a signed difference, not
+    the absolute motion of that vertex and not a percentage of the drive.
     """
     content = path.read_text(encoding="utf-8", errors="replace")
     reactions = {}
@@ -134,6 +135,21 @@ def export_displacements(log_path: Path, input_file: Path, expected_nodes: set[i
         for time, frame in sorted(frames.items()):
             writer.writerows((time, node, *frame[node]) for node in sorted(frame))
     return len(frames)
+
+
+def trim_displacement_history(path: Path) -> None:
+    """Reduce a complete nodal CSV to reference plus its final state."""
+    lines = path.read_text(encoding="utf-8").splitlines()
+    header, rows = lines[0], lines[2:]
+    by_time = {}
+    for row in rows:
+        if row.strip():
+            time = row.split(",", 1)[0]
+            by_time.setdefault(time, []).append(row)
+    times = list(by_time)
+    keep = times[:1] + (times[-1:] if len(times) > 1 else [])
+    path.write_text("\n".join([header, "time,node_id,ux_mm,uy_mm,uz_mm"] +
+                             [row for time in keep for row in by_time[time]]) + "\n", encoding="utf-8")
 
 
 def export_cavity(log_path: Path, input_file: Path, params: SimulationParameters) -> dict:
@@ -229,6 +245,8 @@ def main() -> int:
                         help="Unloaded tip-to-tip gap in mm (default: 1.0)")
     parser.add_argument("--compact", action="store_true",
                         help="Keine Mesh-Zeitreihen und keine XPLT-Datei speichern")
+    parser.add_argument("--final-only-visualization", action="store_true",
+                        help="Nur Referenz- und Endzustand der Knotenverschiebung behalten")
     args = parser.parse_args()
     if not args.generate_only and not args.febio:
         parser.error("Specify --febio or --generate-only")
@@ -249,12 +267,16 @@ def main() -> int:
     mesh = generate_wedge(params)
     input_file = directory / "model.feb"
     retain_visualization = not args.compact
+    final_only_visualization = bool(args.final_only_visualization and retain_visualization)
     write_febio(mesh, params, input_file, retain_visualization=retain_visualization)
     metadata = {"parameters": asdict(params), "created_utc": datetime.now(timezone.utc).isoformat(),
                 "nodes": len(mesh.nodes), "elements": {name: len(items) for name, items in mesh.elements.items()},
+                "nodes_by_body": {name: len({node for _, conn in items for node in conn})
+                                  for name, items in mesh.elements.items()},
                 "febio_status": "not_run", "visualization_data": retain_visualization}
     metadata["materials"] = material_snapshot(params)
-    metadata["measurement_geometry_model"] = "tangent_inner_contour_v2"
+    metadata["measurement_geometry_model"] = ('editor_regions_v1' if params.measurement_definition is not None
+                                               else 'tangent_inner_contour_v2')
     if params.cover_shell.enabled:
         from geometry.cover_mesh_sizing import REAR_SIZE_FACTOR, TRANSITION_ANGLE_DEG
         metadata["cover_mesh_sizing"] = dict(version="matched_contact_v2", rear_size_factor=REAR_SIZE_FACTOR,
@@ -265,6 +287,7 @@ def main() -> int:
                                 else "P0_preload_then_constant_inflated_volume")
     (directory / "case.json").write_text(json.dumps(metadata, indent=2), encoding="utf-8")
     print(f"Generated {input_file} ({len(mesh.nodes)} nodes)")
+    print("STATUS: Eingabenetz bereit", flush=True)
     if args.generate_only:
         return 0
     print("STATUS: FEBio rechnet …", flush=True)
@@ -278,7 +301,8 @@ def main() -> int:
     if params.drive_control == "target_force":
         from solver.target_force import run_target_force
         return run_target_force(directory, params, args.febio, metadata, args.timeout,
-                                retain_visualization=retain_visualization)
+                                retain_visualization=retain_visualization,
+                                final_only_visualization=final_only_visualization)
     try:
         completed = subprocess.run([str(args.febio.resolve()), "-i", str(input_file)], cwd=directory,
                                    stdin=subprocess.DEVNULL, capture_output=True, text=True,
@@ -308,6 +332,8 @@ def main() -> int:
         if retain_visualization:
             metadata["deformation_frames"] = export_displacements(log_path, input_file, set(mesh.nodes))
             metadata["cavity_results"] = export_cavity(log_path, input_file, params)
+            if final_only_visualization:
+                trim_displacement_history(input_file.with_name("nodal_displacements.csv"))
     except (OSError, ValueError) as exc:
         metadata["febio_status"] = "result_parse_failed"
         metadata["failure_summary"] = f"Ergebnisaufbereitung fehlgeschlagen: {exc}"
@@ -320,9 +346,9 @@ def main() -> int:
         writer.writerow(("time", "drive_mm", "reaction_full_N"))
         writer.writerows(history)
     metadata["febio_status"] = "success"
-    metadata["log_files"] = [name for name in ("stdout.txt", "stderr.txt", "solver.log")
-                              if (directory / name).is_file()]
-    (directory / "case.json").write_text(json.dumps(metadata, indent=2), encoding="utf-8")
+    metadata["log_files"] = ["solver.log"]
+    from solver.cleanup import finalize_successful_run
+    finalize_successful_run(directory, metadata)
     print(f"Saved {len(history)} indentation records to {directory / 'force_displacement.csv'}")
     return 0
 

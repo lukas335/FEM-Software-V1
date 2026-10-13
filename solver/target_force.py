@@ -9,8 +9,9 @@ from solver.febio_session import FEBioSession, TrialFailed
 from solver.force_controller import ForceController
 
 
-def run_target_force(directory, params, executable, metadata, timeout=900, *, retain_visualization=True):
-    from solver.prototype import parse_reaction_log, export_displacements, export_cavity
+def run_target_force(directory, params, executable, metadata, timeout=900, *, retain_visualization=True,
+                     final_only_visualization=False):
+    from solver.prototype import parse_reaction_log, export_displacements, export_cavity, trim_displacement_history
 
     session = FEBioSession(directory, params, executable, timeout, retain_visualization=retain_visualization)
     metadata.update(drive_control="target_force", target_force_n=params.target_force_n,
@@ -95,6 +96,8 @@ def run_target_force(directory, params, executable, metadata, timeout=900, *, re
         if retain_visualization:
             metadata["deformation_frames"] = export_displacements(log_path, input_file, session.nodes, end_time=state.solver_time)
             metadata["cavity_results"] = export_cavity(log_path, input_file, params)
+            if final_only_visualization:
+                trim_displacement_history(directory / "nodal_displacements.csv")
         with (directory / "force_displacement.csv").open("w", newline="", encoding="utf-8") as stream:
             writer = csv.writer(stream)
             writer.writerow(("time", "drive_mm", "reaction_full_N"))
@@ -104,7 +107,9 @@ def run_target_force(directory, params, executable, metadata, timeout=900, *, re
         save()
         raise
     metadata["febio_status"] = "success" if metadata["target_reached"] else "partial"
-    save()
+    metadata["log_files"] = ["solver.log"]
+    from solver.cleanup import finalize_successful_run
+    finalize_successful_run(directory, metadata)
     print(f"STATUS: {'Zielkraft erreicht' if metadata['target_reached'] else 'Zielkraft NICHT erreicht: ' + controller.reason}"
           f" · F = {state.force_n:.5f} N · u = {state.drive_mm:.4f} mm", flush=True)
     return 0

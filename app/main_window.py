@@ -2,6 +2,7 @@ from pathlib import Path
 import json
 import sys
 from math import isfinite
+from xml.etree.ElementTree import ParseError
 
 from PySide6.QtCore import QTimer
 from PySide6.QtWidgets import (QApplication, QCheckBox, QComboBox, QDoubleSpinBox, QFileDialog,
@@ -14,17 +15,21 @@ from app.simulation_runner import SimulationRunner, find_febio
 from app.study_panel import StudyPanel
 from app.drive_control import DriveControlEditor
 from app.material_coefficients import MaterialCoefficients
+from app.measurement_import import MeasurementImportMixin
+from app.mesh_inspection_panel import MeshInspectionPanel
 from model.materials import MATERIALS
 from model.parameters import CoverShellParameters, ShellParameters, SimulationParameters, MeasurementShellParameters
 from visualization.geometry_preview import GeometryPreview
 from model.study_storage import atomic_text
 
 
-class MainWindow(QMainWindow):
+class MainWindow(MeasurementImportMixin, QMainWindow):
     def __init__(self, project_root: Path | None = None) -> None:
         super().__init__()
         self.project_root = project_root or Path(__file__).resolve().parents[1]
         self._restoring_settings = False
+        self.imported_measurement = None
+        self.measurement_import_path = ''
         self.settings_path = self.project_root / "work" / "gui_settings.json"
         self.settings_timer = QTimer(self)
         self.settings_timer.setSingleShot(True)
@@ -67,6 +72,8 @@ class MainWindow(QMainWindow):
         study_scroll.setWidgetResizable(True)
         study_scroll.setWidget(self.study)
         self.tabs.addTab(study_scroll, "Parameterstudie")
+        self.mesh_inspection = MeshInspectionPanel(self)
+        self.mesh_tab_index = self.tabs.addTab(self.mesh_inspection, 'Netz & Randbedingungen')
         self.study.runner.busy_changed.connect(self._busy_changed)
         self.study.open_result.connect(self._open_study_result)
         layout.addWidget(self.tabs, 1)
@@ -75,6 +82,8 @@ class MainWindow(QMainWindow):
         self.runner.progress.connect(self.status.setText)
         self.runner.succeeded.connect(self._simulation_finished)
         self.runner.failed.connect(self._simulation_failed)
+        self.runner.mesh_ready.connect(self._mesh_ready)
+        self.runner.prepared.connect(self._mesh_prepared)
         self._update_solver_tooltip()
         # Loading saved results is not a solver start. Always begin on Model.
         simulations = self.project_root / "work/simulations"
@@ -92,6 +101,7 @@ class MainWindow(QMainWindow):
             if baseline.is_file() and self.results.load_case(baseline, show_errors=False):
                 break
         self.tabs.setCurrentIndex(0)
+        self._load_latest_mesh(show_tab=False)
 
     @staticmethod
     def _spin(value: float, suffix: str = " mm", maximum: float = 10000.0) -> QDoubleSpinBox:
@@ -155,8 +165,9 @@ class MainWindow(QMainWindow):
         self.material2.setToolTip("Sklera: Mooney-Rivlin mit tangentialen, gleichmäßig verteilten Fasern. "
                                   "Illustrative Startwerte, keine kalibrierte menschliche oder tierische Sklera. "
                                   "Silikon bleibt als Vergleich auswählbar.")
+        measurement_fields = self.build_measurement_controls()
         groups = [
-            ("Messschale", [("Außenradius R", self.r1), ("Pol-Dicke tx", self.tx1),
+            ("Messschale", measurement_fields + [("Außenradius R", self.r1), ("Pol-Dicke tx", self.tx1),
                             ("Rand-Dicke ty", self.ty1), ("Material", self.material1)]),
             ("Druckkugel", [("Radius R₂", self.r2), ("Wanddicke t₂", self.t2), ("Material", self.material2)]),
             ("Belastung", [("Anfangsdruck P₀", self.pressure), ("", self.constant_pressure),
@@ -196,6 +207,14 @@ class MainWindow(QMainWindow):
         self.solver_button = QPushButton("Solver wählen …")
         self.solver_button.clicked.connect(self._choose_solver)
         actions.addWidget(self.solver_button)
+        self.mesh_button = QPushButton('Netz & Randbedingungen prüfen')
+        self.mesh_button.setToolTip('Erzeugt das tatsächliche Eingabenetz, startet aber keinen FEM-Solver.')
+        self.mesh_button.clicked.connect(self._prepare_mesh)
+        actions.addWidget(self.mesh_button)
+        self.last_mesh_button = QPushButton('Letztes Netz öffnen')
+        self.last_mesh_button.setToolTip('Auch während eines Solverlaufs: vorhandenes Eingabenetz und Bedingungen ansehen.')
+        self.last_mesh_button.clicked.connect(lambda: self._load_latest_mesh())
+        actions.addWidget(self.last_mesh_button)
         self.start_button = QPushButton("Simulation starten")
         self.start_button.setObjectName("primary")
         self.start_button.clicked.connect(self._start_simulation)
@@ -229,6 +248,7 @@ class MainWindow(QMainWindow):
             wedge_angle_deg=self.wedge.value(), mesh_quality=self.quality.currentData(),
             initial_gap_mm=self.initial_gap.value(),
             constant_pressure=self.constant_pressure.isChecked(),
+            measurement_definition=self.active_measurement_definition(),
             cover_shell=CoverShellParameters(enabled=self.cover_enabled.isChecked(),
                 thickness_x_mm=self.cover_tx.value(), thickness_y_mm=self.cover_ty.value(),
                 front_material_name=self.cover_front_material.currentData(),
@@ -267,7 +287,8 @@ class MainWindow(QMainWindow):
         data = dict(version=1, numbers={k: w.value() for k, w in numbers.items()},
                     choices={k: w.currentData() for k, w in choices.items()},
                     flags={k: w.isChecked() for k, w in flags.items()},
-                    febio_path=str(self.febio_path) if self.febio_path else None)
+                    febio_path=str(self.febio_path) if self.febio_path else None,
+                    measurement_import=self.measurement_import_settings())
         try:
             self.settings_path.parent.mkdir(parents=True, exist_ok=True)
             atomic_text(self.settings_path, json.dumps(data, indent=2, allow_nan=False))
@@ -314,6 +335,10 @@ class MainWindow(QMainWindow):
                     flags[key].setChecked(value)
             if solver and Path(solver).is_file():
                 self.febio_path = Path(solver)
+            self.restore_measurement_import(data.get('measurement_import'))
+        except (ValueError, TypeError, KeyError) as error:
+            self.status.setText(f'Messschalen-Import aus Einstellungen nicht geladen: {error}')
+            return
         finally:
             self._restoring_settings = False
         self._update_preview()
@@ -351,11 +376,49 @@ class MainWindow(QMainWindow):
         except (OSError, ValueError, RuntimeError) as exc:
             self.status.setText(str(exc))
 
+    def _prepare_mesh(self):
+        if self.runner.busy or self.study.runner.busy:
+            return
+        try:
+            self.runner.start(self.parameters(), None, generate_only=True)
+            self.tabs.setCurrentIndex(self.mesh_tab_index)
+        except (OSError, ValueError, RuntimeError) as exc:
+            self.status.setText(str(exc))
+
+    def _mesh_ready(self, path):
+        try:
+            self.mesh_inspection.load_mesh(path)
+            self.tabs.setCurrentIndex(self.mesh_tab_index)
+        except (OSError, ValueError, KeyError, TypeError, ParseError) as error:
+            self.status.setText(f'Netzanzeige nicht verfügbar: {error}')
+
+    def _mesh_prepared(self, path):
+        self.status.setText('Netzprüfung abgeschlossen – kein Solver gestartet. Hinweise im Netz-Tab beachten.')
+
+    def _load_latest_mesh(self, *, show_tab=True):
+        current = self.runner.directory / 'model.feb' if self.runner.directory else None
+        candidates = list((self.project_root / 'work/simulations').glob('run_*/model.feb'))
+        if not candidates:
+            candidates = list((self.project_root / 'work/mesh_previews').glob('run_*/model.feb'))
+        path = current if current and current.is_file() else max(candidates, key=lambda item: item.stat().st_mtime, default=None)
+        if path is None:
+            if show_tab:
+                self.status.setText('Noch kein Netz vorhanden. Zuerst Netz & Randbedingungen prüfen.')
+            return
+        try:
+            self.mesh_inspection.load_mesh(path)
+            if show_tab:
+                self.tabs.setCurrentIndex(self.mesh_tab_index)
+        except (OSError, ValueError, KeyError, TypeError, ParseError) as error:
+            if show_tab:
+                self.status.setText(f'Netz nicht lesbar: {error}')
+
     def _busy_changed(self, busy: bool):
         busy = busy or self.runner.busy or self.study.runner.busy
         self.start_button.setEnabled(not busy)
         self.start_button.setText("Berechnung läuft …" if busy else "Simulation starten")
         self.solver_button.setEnabled(not busy)
+        self.mesh_button.setEnabled(not busy)
         self.parameter_form.setEnabled(not busy)
         self.progress.setVisible(busy)
         self.tabs.setTabText(1, "Ergebnisse · vorheriger Lauf" if busy and self.results.curve else "Ergebnisse")
@@ -370,13 +433,16 @@ class MainWindow(QMainWindow):
             metadata = json.loads(curve_path.with_name("case.json").read_text(encoding="utf-8"))
             self.status.setText("Berechnung abgeschlossen" if metadata.get("febio_status") == "success"
                                else "Teilresultat – Zielkraft nicht erreicht; siehe Ergebnisstatus")
+            if metadata.get('cleanup_warnings'):
+                self.status.setText(self.status.text() + ' · Aufräumwarnung; Ergebnisse sind verfügbar')
             self.tabs.setCurrentIndex(1)
         else:
             self._simulation_failed("Die berechneten Ergebnisse konnten nicht geladen werden.")
 
     def _simulation_failed(self, details: str):
-        self.status.setText("Berechnung fehlgeschlagen – bisherige Ergebnisse bleiben erhalten")
-        message = QMessageBox(QMessageBox.Icon.Warning, "Simulation fehlgeschlagen",
+        title = 'Netzprüfung fehlgeschlagen' if self.runner.generate_only else 'Simulation fehlgeschlagen'
+        self.status.setText(title + ' – bisherige Ergebnisse bleiben erhalten')
+        message = QMessageBox(QMessageBox.Icon.Warning, title,
                               "Der Lauf konnte nicht abgeschlossen werden.", parent=self)
         message.setDetailedText(details)
         message.exec()

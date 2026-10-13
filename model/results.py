@@ -17,10 +17,12 @@ class ForceCurve:
 @dataclass(frozen=True)
 class StiffnessFit:
     stiffness: float
-    intercept: float
+    intercept: float | None
     r_squared: float | None
     compliance: float | None
     count: int
+    delta_force: float
+    delta_displacement: float
 
 
 @dataclass(frozen=True)
@@ -87,16 +89,13 @@ def fit_stiffness(curve: ForceCurve, start: float, end: float) -> StiffnessFit:
     if start < curve.displacement_mm[0] or end > curve.displacement_mm[-1]:
         raise ValueError("Fit-Bereich muss innerhalb der geladenen Kurve liegen.")
     points = [(u, f) for u, f in zip(curve.displacement_mm, curve.force_n) if start <= u <= end]
-    if len(points) < 3:
-        raise ValueError("Bitte mindestens drei Messpunkte für den Fit einschließen.")
-    mean_u = sum(u for u, _ in points) / len(points)
-    mean_f = sum(f for _, f in points) / len(points)
-    variance_u = sum((u - mean_u) ** 2 for u, _ in points)
-    if variance_u <= 0:
-        raise ValueError("Der Fit benötigt unterschiedliche Verschiebungen.")
-    k = sum((u - mean_u) * (f - mean_f) for u, f in points) / variance_u
-    intercept = mean_f - k * mean_u
-    residual = sum((f - k * u - intercept) ** 2 for u, f in points)
-    total = sum((f - mean_f) ** 2 for _, f in points)
-    return StiffnessFit(k, intercept, 1 - residual / total if total > 0 else None,
-                        1 / k if k > 0 else None, len(points))
+    if len(points) < 2:
+        raise ValueError("Mindestens zwei Punkte für die Endpunkt-Steifigkeit nötig.")
+    first_u, first_f = points[0]
+    last_u, last_f = points[-1]
+    delta_u = last_u - first_u
+    if delta_u <= 0:
+        raise ValueError("Die Endpunkt-Verschiebung muss zunehmen.")
+    stiffness = (last_f - first_f) / delta_u
+    return StiffnessFit(stiffness, None, None, 1 / stiffness if stiffness > 0 else None, 2,
+                        last_f - first_f, delta_u)

@@ -72,7 +72,7 @@ class ResultsPanel(QWidget):
         metrics = QGridLayout()
         metrics.setSpacing(8)
         self.values = {}
-        for index, (key, title, unit) in enumerate((("k", "Steifigkeit · N/mm", "Linearer Fit nach Erstkontakt"),
+        for index, (key, title, unit) in enumerate((("k", "Steifigkeit · N/mm", "ΔF / Δux zwischen erstem und letztem Kontaktpunkt"),
                                  ("c", "Compliance · mm/N", "1/k"),
                                  ("r2", "R²", "1,0 = linearer Verlauf"),
                                  ("fmax", "Max. Kraft · N", "Gesamtumfang 360°"))):
@@ -97,7 +97,7 @@ class ResultsPanel(QWidget):
         self.curve_description.hide()
         curve_card.setToolTip(self.curve_description.text())
         controls = QHBoxLayout()
-        self.fit_range_label = label("Fit automatisch ab Kontakt")
+        self.fit_range_label = label("Steifigkeit aus erstem und letztem Kontaktpunkt")
         self.fit_range_label.setWordWrap(True)
         controls.addWidget(self.fit_range_label)
         curve_layout.addLayout(controls)
@@ -213,12 +213,30 @@ class ResultsPanel(QWidget):
         cavity_warnings = metadata.get("cavity_results", {}).get("warnings", [])
         if cavity_warnings:
             self.case_label.setText(self.case_label.text() + "  ·  " + " · ".join(cavity_warnings))
+        cleanup_warnings = metadata.get('cleanup_warnings', [])
+        if cleanup_warnings:
+            self.case_label.setText(self.case_label.text() + ' · Aufräumwarnung (Ergebnisse verfügbar)')
         self.source_label.setText(f"Lauf: {curve.source.parent.name}  ·  {len(curve.force_n)} Punkte  ·  "
                                   f"uₘₐₓ = {curve.displacement_mm[-1]:.3f} mm  ·  F(u₀) = {curve.force_n[0]:.4f} N")
         self.source_label.setToolTip(str(curve.source))
-        self.case_label.setToolTip(str(curve.source.parent))
+        self.case_label.setToolTip('\n'.join([str(curve.source.parent), *cleanup_warnings]))
+        elements = metadata.get("elements", {})
+        nodes_by_body = metadata.get("nodes_by_body", {})
+        names = {"measurement_shell": "Messschale", "pressure_shell": "Druckkörper",
+                 "cover_front": "Deckschale vorne", "cover_rear": "Deckschale hinten"}
+        definition = params.get('measurement_definition')
+        if definition:
+            from model.measurement_definition import domain_name
+            for region in definition['geometry']['regions']:
+                names[domain_name(region['id'])] = 'Messschale · ' + region.get('name', region['id'])
+        mesh_lines = []
+        for key, title in names.items():
+            if key in elements:
+                mesh_lines.append(f"{title}: {nodes_by_body.get(key, '—')} Knoten / {elements[key]} Tet4")
+        body_stats = "\n".join(mesh_lines) if mesh_lines else "Körperaufteilung nicht dokumentiert"
         self.mesh_info.setText(f"FEBio {metadata.get('febio_version', '—')}  ·  "
-                               f"{metadata.get('nodes', '—')} Knoten  ·  Wedge {params.get('wedge_angle_deg', '—')}°\n"
+                               f"Gesamt: {metadata.get('nodes', '—')} Knoten  ·  Wedge {params.get('wedge_angle_deg', '—')}°\n"
+                               f"{body_stats}\n"
                                f"Anfangsspalt: {params.get('initial_gap_mm', 'nicht dokumentiert')} mm  ·  "
                                "Quelle: Eingabenetz und Knotenverschiebungen des geladenen Laufs")
         self.mesh_view.setToolTip(self.mesh_info.text())
@@ -262,7 +280,7 @@ class ResultsPanel(QWidget):
         self.ax.margins(x=0.04, y=0.15)
         self.ax.set_ylim(bottom=min(0, min(curve.force_n) * 1.15))
         self.fit_message.hide()
-        self.fit_range_label.setText("Fit automatisch ab Kontakt")
+        self.fit_range_label.setText("Steifigkeit: erster bis letzter Kontaktpunkt")
         self.fit_range_label.setToolTip("")
         for key in ("k", "c", "r2"):
             self.values[key].setText("—")
@@ -270,22 +288,20 @@ class ResultsPanel(QWidget):
         try:
             self.contact = automatic_fit_range(curve)
             start, end = self.contact.start_mm, self.contact.end_mm
-            self.fit_range_label.setText(f"Kontakt ≈ {self.contact.contact_mm:.3f} mm → {end:.3f} mm")
+            self.fit_range_label.setText(f"Kontakt ≈ {self.contact.contact_mm:.3f} mm · Endpunkt-Auswertung bis {end:.3f} mm")
             self.fit_range_label.setToolTip(
                 f"Kontakt aus Kraftanstieg geschätzt: [{self.contact.lower_mm:.4f}, {self.contact.upper_mm:.4f}] mm.\n"
                 f"Schwelle {self.contact.threshold_n:.3g} N, mindestens 3 aufeinanderfolgende belastete Zustände.\n"
                 f"Weg ab Kontakt bis Maximum: {end - self.contact.contact_mm:.4f} mm.\n"
-                f"Regression aller belasteten Punkte von {start:.4f} bis {end:.4f} mm, freier Achsenabschnitt.")
+                f"Steifigkeit aus ΔF/Δux zwischen erstem und letztem Punkt im Kontaktbereich.")
             self.ax.axvline(self.contact.contact_mm, color="#64748b", linestyle=":", linewidth=1)
             fit = fit_stiffness(curve, start, end)
             self.values["k"].setText(f"{fit.stiffness:.4f}")
             self.values["c"].setText(f"{fit.compliance:.3f}" if fit.compliance is not None else "—")
             self.values["r2"].setText(f"{fit.r_squared:.5f}" if fit.r_squared is not None else "—")
-            self.ax.axvspan(start, end, color="#e6b76c", alpha=0.13, linewidth=0)
-            self.ax.plot([start, end], [fit.stiffness * v + fit.intercept for v in (start, end)],
-                         color="#cc8640", linestyle="--", linewidth=2, label="Linearer Fit")
-            self.fit_message.setText(f"{fit.count} Punkte im Fit  ·  F = {fit.stiffness:.4f} · u + {fit.intercept:.4f} N"
-                                     + ("  ·  Keine positive Steifigkeit" if fit.stiffness <= 0 else ""))
+            self.fit_message.setText(f"ΔF = {fit.delta_force:.4f} N · Δux = {fit.delta_displacement:.4f} mm · "
+                                     f"k = ΔF / Δux = {fit.stiffness:.4f} N/mm"
+                                     + (" · Keine positive Steifigkeit" if fit.stiffness <= 0 else ""))
             self.values["k"].setToolTip(self.fit_message.text())
             if fit.stiffness <= 0:
                 self.fit_message.setText("Keine positive Steifigkeit im Fit-Bereich")

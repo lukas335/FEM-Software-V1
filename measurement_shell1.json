@@ -1,0 +1,691 @@
+{
+  "version": 2,
+  "parameters": {
+    "ty": {
+      "value": 3.4000000000000004,
+      "unit": "mm",
+      "type": "float",
+      "study_variable": false,
+      "values": null,
+      "minimum": null,
+      "maximum": null
+    },
+    "tx": {
+      "value": 0.5,
+      "unit": "mm",
+      "type": "float",
+      "study_variable": false,
+      "values": null,
+      "minimum": null,
+      "maximum": null
+    },
+    "r_sens": {
+      "value": 1.5,
+      "unit": "mm",
+      "type": "float",
+      "study_variable": false,
+      "values": null,
+      "minimum": null,
+      "maximum": null
+    },
+    "R_outer": {
+      "value": 8,
+      "unit": "mm",
+      "type": "float",
+      "study_variable": false,
+      "values": null,
+      "minimum": null,
+      "maximum": null
+    }
+  },
+  "geometry": {
+    "points": [
+      {
+        "id": "p001",
+        "x": 3.4116877226699223,
+        "y": 0.04758605814303825
+      },
+      {
+        "id": "p002",
+        "x": 11.41154619436845,
+        "y": 1.423849335286416e-09
+      },
+      {
+        "id": "p003",
+        "x": 3.4116877226702735,
+        "y": 8.047586058143018
+      },
+      {
+        "id": "p004",
+        "x": 4.836238928660526,
+        "y": 0.0
+      },
+      {
+        "id": "p005",
+        "x": 7.526315789473685,
+        "y": 0
+      },
+      {
+        "id": "p006",
+        "x": 4.836238928660461,
+        "y": 4.647586058143101
+      },
+      {
+        "id": "p007",
+        "x": 1.3892427660811435,
+        "y": 4.6
+      },
+      {
+        "id": "p008",
+        "x": 1.9628758345698158,
+        "y": 3.7728531855955683
+      },
+      {
+        "id": "p009",
+        "x": 1.9628758345698158,
+        "y": 3.7728531855955683
+      },
+      {
+        "id": "p010",
+        "x": 1.5973815209546796,
+        "y": 3.7728531855955683
+      },
+      {
+        "id": "p011",
+        "x": 1.0470914127423823,
+        "y": 8
+      },
+      {
+        "id": "p012",
+        "x": 1.0470914127423823,
+        "y": 4.6
+      },
+      {
+        "id": "p013",
+        "x": 2.9263157894736853,
+        "y": 4.5872576177285325
+      },
+      {
+        "id": "p014",
+        "x": 9.771518106806072,
+        "y": 0.0
+      },
+      {
+        "id": "p015",
+        "x": 6.714681440443212,
+        "y": 1.9778393351800552
+      },
+      {
+        "id": "p016",
+        "x": 11.271518106840253,
+        "y": 4.244662644383296e-11
+      },
+      {
+        "id": "p017",
+        "x": 10.250646484163932,
+        "y": 1.4214204156557797
+      },
+      {
+        "id": "p018",
+        "x": 7.274629431404012,
+        "y": 1.7999999999999972
+      },
+      {
+        "id": "p019",
+        "x": 3.8325730828643607,
+        "y": 2.0813483508434243
+      },
+      {
+        "id": "p020",
+        "x": -0.6307479224376725,
+        "y": 9.174515235457054
+      },
+      {
+        "id": "p021",
+        "x": -3.516897506925204,
+        "y": 9.174515235457054
+      },
+      {
+        "id": "p022",
+        "x": -1.3049968078207745,
+        "y": 0.9999999999999868
+      },
+      {
+        "id": "p023",
+        "x": -1.3049968078207745,
+        "y": 6.800000000005058
+      },
+      {
+        "id": "p024",
+        "x": -2.3049968078207743,
+        "y": 6.800000000005058
+      },
+      {
+        "id": "p025",
+        "x": -2.1598337950138484,
+        "y": 2.2936288088642636
+      },
+      {
+        "id": "p026",
+        "x": 2.3076584480557,
+        "y": 4.647586058143096
+      },
+      {
+        "id": "p027",
+        "x": 2.3076584480557,
+        "y": 8.047586058143095
+      },
+      {
+        "id": "p028",
+        "x": -2.3049968078207743,
+        "y": 1.800000000005058
+      },
+      {
+        "id": "p029",
+        "x": -3.694409949535917,
+        "y": 1.800000000005058
+      },
+      {
+        "id": "p030",
+        "x": -3.694409949535917,
+        "y": 0.0
+      },
+      {
+        "id": "p031",
+        "x": 9.71154619436832,
+        "y": 0.0
+      },
+      {
+        "id": "p032",
+        "x": 10.91154619436842,
+        "y": 0.0
+      },
+      {
+        "id": "p033",
+        "x": 6.010551894850456,
+        "y": 1.0597911273035887
+      },
+      {
+        "id": "p034",
+        "x": 9.048221236297604,
+        "y": 0.9999999999999868
+      },
+      {
+        "id": "p035",
+        "x": 9.341460313559647,
+        "y": 1.1415062158859242
+      }
+    ],
+    "elements": [
+      {
+        "id": "A001",
+        "kind": "arc",
+        "center_point": "p001",
+        "start_point": "p002",
+        "end_point": "p003",
+        "radius": 7.99999999999998,
+        "sweep_angle": 90.34081203648269,
+        "construction": false
+      },
+      {
+        "id": "A004",
+        "kind": "arc",
+        "center_point": "p004",
+        "start_point": "p035",
+        "end_point": "p006",
+        "radius": 4.647586058143104,
+        "sweep_angle": 75.78195401709523,
+        "construction": false
+      },
+      {
+        "id": "L001",
+        "kind": "line",
+        "start_point": "p034",
+        "end_point": "p022",
+        "orientation": "horizontal",
+        "construction": false
+      },
+      {
+        "id": "L002",
+        "kind": "line",
+        "start_point": "p022",
+        "end_point": "p023",
+        "orientation": "vertical",
+        "construction": false
+      },
+      {
+        "id": "L004",
+        "kind": "line",
+        "start_point": "p023",
+        "end_point": "p024",
+        "orientation": "horizontal",
+        "construction": false
+      },
+      {
+        "id": "L005",
+        "kind": "line",
+        "start_point": "p006",
+        "end_point": "p026",
+        "orientation": "horizontal",
+        "construction": false
+      },
+      {
+        "id": "L006",
+        "kind": "line",
+        "start_point": "p026",
+        "end_point": "p027",
+        "orientation": "vertical",
+        "construction": false
+      },
+      {
+        "id": "L007",
+        "kind": "line",
+        "start_point": "p027",
+        "end_point": "p003",
+        "orientation": "horizontal",
+        "construction": false
+      },
+      {
+        "id": "L008",
+        "kind": "line",
+        "start_point": "p024",
+        "end_point": "p028",
+        "orientation": "vertical",
+        "construction": false
+      },
+      {
+        "id": "L009",
+        "kind": "line",
+        "start_point": "p028",
+        "end_point": "p029",
+        "orientation": "horizontal",
+        "construction": false
+      },
+      {
+        "id": "L010",
+        "kind": "line",
+        "start_point": "p029",
+        "end_point": "p030",
+        "orientation": "vertical",
+        "construction": false
+      },
+      {
+        "id": "A002",
+        "kind": "arc",
+        "center_point": "p031",
+        "start_point": "p032",
+        "end_point": "p035",
+        "radius": 1.2000000000000755,
+        "sweep_angle": 107.96312866593968,
+        "construction": false,
+        "circle_id": "circle_001"
+      },
+      {
+        "id": "A005",
+        "kind": "arc",
+        "center_point": "p031",
+        "start_point": "p035",
+        "end_point": "p034",
+        "radius": 1.2000000000000548,
+        "sweep_angle": 15.594181095966945,
+        "construction": false,
+        "circle_id": "circle_001"
+      },
+      {
+        "id": "L003",
+        "kind": "line",
+        "start_point": "p030",
+        "end_point": "p032",
+        "orientation": "horizontal",
+        "construction": false
+      },
+      {
+        "id": "L011",
+        "kind": "line",
+        "start_point": "p032",
+        "end_point": "p002",
+        "orientation": "horizontal",
+        "construction": false
+      }
+    ],
+    "constraints": [
+      {
+        "id": "C001",
+        "type": "horizontal",
+        "references": [
+          "L001"
+        ],
+        "driving": true
+      },
+      {
+        "id": "C002",
+        "type": "vertical",
+        "references": [
+          "L002"
+        ],
+        "driving": true
+      },
+      {
+        "id": "C003",
+        "type": "horizontal",
+        "references": [
+          "L004"
+        ],
+        "driving": true
+      },
+      {
+        "id": "C004",
+        "type": "horizontal",
+        "references": [
+          "L005"
+        ],
+        "driving": true
+      },
+      {
+        "id": "C007",
+        "type": "vertical",
+        "references": [
+          "L006"
+        ],
+        "driving": true
+      },
+      {
+        "id": "C008",
+        "type": "horizontal",
+        "references": [
+          "L007"
+        ],
+        "driving": true
+      },
+      {
+        "id": "C009",
+        "type": "tangent",
+        "references": [
+          "A001",
+          "L007"
+        ],
+        "driving": true
+      },
+      {
+        "id": "C010",
+        "type": "tangent",
+        "references": [
+          "L005",
+          "A004"
+        ],
+        "driving": true
+      },
+      {
+        "id": "C011",
+        "type": "vertical",
+        "references": [
+          "L008"
+        ],
+        "driving": true
+      },
+      {
+        "id": "C012",
+        "type": "horizontal",
+        "references": [
+          "L009"
+        ],
+        "driving": true
+      },
+      {
+        "id": "C013",
+        "type": "vertical",
+        "references": [
+          "L010"
+        ],
+        "driving": true
+      },
+      {
+        "id": "C006",
+        "type": "coincident",
+        "references": [
+          "x_axis",
+          "p014"
+        ],
+        "driving": true,
+        "mode": "segment"
+      },
+      {
+        "id": "C016",
+        "type": "coincident",
+        "references": [
+          "p030",
+          "x_axis"
+        ],
+        "driving": true,
+        "mode": "segment"
+      },
+      {
+        "id": "C005",
+        "type": "horizontal",
+        "references": [
+          "L003"
+        ],
+        "driving": true
+      },
+      {
+        "id": "C014",
+        "type": "coincident",
+        "references": [
+          "L003",
+          "x_axis"
+        ],
+        "driving": true,
+        "mode": "segment"
+      },
+      {
+        "id": "C015",
+        "type": "coincident",
+        "references": [
+          "p031",
+          "x_axis"
+        ],
+        "driving": true,
+        "mode": "segment"
+      },
+      {
+        "id": "C017",
+        "type": "horizontal",
+        "references": [
+          "L011"
+        ],
+        "driving": true
+      },
+      {
+        "id": "C018",
+        "type": "coincident",
+        "references": [
+          "x_axis",
+          "p004"
+        ],
+        "driving": true,
+        "mode": "segment"
+      }
+    ],
+    "dimensions": [
+      {
+        "id": "D001",
+        "type": "radius",
+        "references": [
+          "A001"
+        ],
+        "value": 8,
+        "unit": "mm",
+        "driving": true,
+        "parameter": "R_outer",
+        "display_position": [
+          9.390581717451514,
+          5.83379501385041
+        ]
+      },
+      {
+        "id": "D003",
+        "type": "length",
+        "references": [
+          "L006"
+        ],
+        "value": 3.4000000000000004,
+        "unit": "mm",
+        "driving": true,
+        "parameter": "ty",
+        "display_position": [
+          1.0138504155124652,
+          7.155599580879342
+        ],
+        "axis": "vertical"
+      },
+      {
+        "id": "D004",
+        "type": "length",
+        "references": [
+          "L004"
+        ],
+        "value": 1.0,
+        "unit": "mm",
+        "driving": true,
+        "display_position": [
+          -1.748891966744184,
+          7.063711911357339
+        ],
+        "axis": "horizontal"
+      },
+      {
+        "id": "D007",
+        "type": "length",
+        "references": [
+          "L008"
+        ],
+        "value": 5.0,
+        "unit": "mm",
+        "driving": true,
+        "display_position": [
+          -3.191135734072021,
+          3.5547091435592733
+        ],
+        "axis": "vertical"
+      },
+      {
+        "id": "D002",
+        "type": "distance",
+        "references": [
+          "L003",
+          "L001"
+        ],
+        "value": 1.0,
+        "unit": "mm",
+        "driving": true,
+        "display_position": [
+          4.184972430080255,
+          0.8755799233080434
+        ],
+        "axis": "vertical",
+        "reference_types": [
+          "element",
+          "element"
+        ]
+      },
+      {
+        "id": "D005",
+        "type": "radius",
+        "references": [
+          "A005"
+        ],
+        "value": 1.2,
+        "unit": "mm",
+        "driving": true,
+        "display_position": [
+          8.0431902560101,
+          3.657138069529592
+        ]
+      },
+      {
+        "id": "D006",
+        "type": "length",
+        "references": [
+          "L011"
+        ],
+        "value": 0.5,
+        "unit": "mm",
+        "driving": true,
+        "parameter": "tx",
+        "display_position": [
+          11.249482458926742,
+          -0.8671564494760927
+        ],
+        "axis": "horizontal"
+      }
+    ],
+    "regions": [
+      {
+        "id": "R001",
+        "name": "Bereich 1",
+        "material": "silicone_A30",
+        "boundary": [
+          "A001",
+          "L007",
+          "L006",
+          "L005",
+          "A004",
+          "A002",
+          "L011"
+        ],
+        "boundary_motion": {
+          "A001": "free_contact",
+          "L007": "free_contact",
+          "L006": "follow_translation",
+          "L005": "free_contact",
+          "A004": "free_contact",
+          "A002": "free_contact",
+          "L011": "free_contact"
+        },
+        "connected_to": []
+      },
+      {
+        "id": "R002",
+        "name": "Bereich 2",
+        "material": "silicone_A30",
+        "boundary": [
+          "L001",
+          "L002",
+          "L004",
+          "L008",
+          "L009",
+          "L010",
+          "L003",
+          "A002",
+          "A005"
+        ],
+        "boundary_motion": {
+          "L001": "free_contact",
+          "L002": "free_contact",
+          "L004": "free_contact",
+          "L008": "free_contact",
+          "L009": "free_contact",
+          "L010": "free_contact",
+          "L003": "free_contact",
+          "A002": "free_contact",
+          "A005": "free_contact"
+        },
+        "connected_to": []
+      }
+    ],
+    "interfaces": [
+      {
+        "id": "I001",
+        "region_a": "R001",
+        "region_b": "R002",
+        "boundary_a": [
+          "A002"
+        ],
+        "boundary_b": [
+          "A002"
+        ],
+        "condition": "frictionless"
+      }
+    ]
+  }
+}

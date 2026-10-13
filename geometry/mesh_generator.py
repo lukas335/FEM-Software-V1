@@ -82,7 +82,12 @@ def generate_wedge(params: SimulationParameters) -> WedgeMesh:
                 raise RuntimeError("Unexpected Gmsh revolve order")
             surfaces_by_name[prefix + "_symmetry_1"] = [result[0][1]]
 
-        add_measurement_shell(gmsh, params, volumes_by_name, surfaces_by_name)
+        imported = None
+        if params.measurement_definition is None:
+            add_measurement_shell(gmsh, params, volumes_by_name, surfaces_by_name)
+        else:
+            from geometry.imported_measurement import add_imported_measurement
+            imported = add_imported_measurement(gmsh, params, volumes_by_name, surfaces_by_name)
         shell("pressure", params.pressure_shell.radius_mm, params.pressure_shell.thickness_mm,
               params.initial_gap_mm + params.pressure_shell.radius_mm, -1, full=True)
         if params.cover_shell.enabled:
@@ -139,14 +144,34 @@ def generate_wedge(params: SimulationParameters) -> WedgeMesh:
         if params.cover_shell.enabled:
             from geometry.contact_nodes import separate_pressure_contact
             separate_pressure_contact(nodes, elements, facets)
+        imported_support = None
+        imported_x_only = set()
+        if imported is not None:
+            from geometry.imported_measurement import finish_imported_mesh
+            imported_support, imported_x_only = finish_imported_mesh(imported, nodes, elements, facets)
         support_name = "cover_support" if params.cover_shell.enabled else "pressure_support"
-        node_sets = {name: sorted({node for facet in facets[name] for node in facet})
-                     for name in ("measurement_support", support_name)}
-        measurement_nodes = {node for _, element in elements["measurement_shell"] for node in element}
+        node_sets = {support_name: sorted({node for facet in facets[support_name] for node in facet})}
+        node_sets['measurement_support'] = (sorted(imported_support) if imported_support is not None
+                else sorted({node for facet in facets['measurement_support'] for node in facet}))
+        if imported_x_only:
+            node_sets['measurement_x_only'] = sorted(imported_x_only)
+        measurement_nodes = {node for name, records in elements.items() if name.startswith('measurement_')
+                             for _, element in records for node in element}
+        if imported is not None:
+            from model.measurement_definition import domain_name, reference_region
+            reference_domain = domain_name(reference_region(params.measurement_definition))
+            measurement_nodes = {node for _, element in elements[reference_domain] for node in element}
         pole_target = (-params.measurement_shell.thickness_x_mm, 0.0, 0.0)
+        if imported is not None:
+            from model.measurement_definition import reference_x
+            point_id = params.measurement_definition['metadata']['sensor_tip_point']
+            point = imported.document.point(point_id)
+            pole_target = (point['x'] - reference_x(params.measurement_definition),
+                           0.0 if abs(point['y']) <= 1e-6 else point['y'], 0.0)
         pole = min(measurement_nodes, key=lambda node: sum((nodes[node][i] - pole_target[i]) ** 2 for i in range(3)))
         if sum((nodes[pole][i] - pole_target[i]) ** 2 for i in range(3)) > 1e-12:
-            raise RuntimeError("Innerer Messschalen-Polknoten bei r=0 fehlt")
+            raise RuntimeError("Messreferenz-Knoten im gewählten Bereich fehlt" if imported is not None
+                               else "Innerer Messschalen-Polknoten bei r=0 fehlt")
         node_sets["measurement_inner_pole"] = [pole]
         pressure_nodes = {node for _, element in elements["pressure_shell"] for node in element}
         center = params.initial_gap_mm + params.pressure_shell.radius_mm

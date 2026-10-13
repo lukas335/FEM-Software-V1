@@ -1,0 +1,225 @@
+{
+  "version": 2,
+  "parameters": {},
+  "geometry": {
+    "points": [
+      {
+        "id": "p001",
+        "x": 0.13961605584642234,
+        "y": 0.0
+      },
+      {
+        "id": "p002",
+        "x": 4.502616055846422,
+        "y": 0.0
+      },
+      {
+        "id": "p003",
+        "x": 3.0975714834752823,
+        "y": 3.207221334451517
+      },
+      {
+        "id": "p004",
+        "x": 1.692844677137871,
+        "y": 3.2072226173405642
+      },
+      {
+        "id": "p005",
+        "x": 1.692844677137871,
+        "y": 2.425828970331588
+      },
+      {
+        "id": "p006",
+        "x": 2.670157068062827,
+        "y": 2.425828970331588
+      },
+      {
+        "id": "p007",
+        "x": 1.849912739965096,
+        "y": 0.0
+      },
+      {
+        "id": "p008",
+        "x": 4.265719897908493,
+        "y": 0.8493072039644758
+      },
+      {
+        "id": "p009",
+        "x": 4.2582897033158815,
+        "y": 0.0
+      },
+      {
+        "id": "p010",
+        "x": 3.408949998311082,
+        "y": 0.0
+      }
+    ],
+    "elements": [
+      {
+        "id": "A001",
+        "kind": "arc",
+        "center_point": "p001",
+        "start_point": "p002",
+        "end_point": "p003",
+        "radius": 4.363,
+        "sweep_angle": 47.31527991388606,
+        "construction": false
+      },
+      {
+        "id": "L001",
+        "kind": "line",
+        "start_point": "p003",
+        "end_point": "p004",
+        "orientation": "horizontal",
+        "construction": false
+      },
+      {
+        "id": "L002",
+        "kind": "line",
+        "start_point": "p004",
+        "end_point": "p005",
+        "orientation": "vertical",
+        "construction": false
+      },
+      {
+        "id": "L003",
+        "kind": "line",
+        "start_point": "p005",
+        "end_point": "p006",
+        "orientation": "horizontal",
+        "construction": false
+      },
+      {
+        "id": "A002",
+        "kind": "arc",
+        "center_point": "p007",
+        "start_point": "p006",
+        "end_point": "p008",
+        "radius": 2.5607512474030956,
+        "sweep_angle": -51.94832610475038,
+        "construction": false
+      },
+      {
+        "id": "A003",
+        "kind": "arc",
+        "center_point": "p009",
+        "start_point": "p008",
+        "end_point": "p010",
+        "radius": 0.8493397050047995,
+        "sweep_angle": 90.50124139836132,
+        "construction": false
+      },
+      {
+        "id": "L004",
+        "kind": "line",
+        "start_point": "p010",
+        "end_point": "p002",
+        "orientation": "horizontal",
+        "construction": false
+      }
+    ],
+    "constraints": [],
+    "dimensions": [
+      {
+        "id": "D001",
+        "type": "radius",
+        "references": [
+          "A001"
+        ],
+        "value": 4.363,
+        "unit": "mm",
+        "driving": true,
+        "display_position": [
+          4.554973821989528,
+          3.769633507853403
+        ]
+      },
+      {
+        "id": "D002",
+        "type": "radius",
+        "references": [
+          "A002"
+        ],
+        "value": 2.5607512474030956,
+        "unit": "mm",
+        "driving": true,
+        "display_position": [
+          4.5898778359511345,
+          2.425828970331588
+        ]
+      },
+      {
+        "id": "D003",
+        "type": "radius",
+        "references": [
+          "A003"
+        ],
+        "value": 0.8493397050047995,
+        "unit": "mm",
+        "driving": true,
+        "display_position": [
+          3.4031413612565444,
+          0.7853403141361257
+        ]
+      },
+      {
+        "id": "D004",
+        "type": "length",
+        "references": [
+          "L004"
+        ],
+        "value": 1.093667802736038,
+        "unit": "mm",
+        "driving": true,
+        "display_position": [
+          3.9557838996791013,
+          -0.7678883071553229
+        ]
+      },
+      {
+        "id": "D005",
+        "type": "length",
+        "references": [
+          "L001"
+        ],
+        "value": 1.4047279895200562,
+        "unit": "mm",
+        "driving": true,
+        "display_position": [
+          2.395208671897899,
+          3.961605584642234
+        ]
+      },
+      {
+        "id": "D006",
+        "type": "length",
+        "references": [
+          "L002"
+        ],
+        "value": 0.7813936470089762,
+        "unit": "mm",
+        "driving": true,
+        "display_position": [
+          0.7155322862129145,
+          2.8165257938360764
+        ]
+      },
+      {
+        "id": "D007",
+        "type": "length",
+        "references": [
+          "L003"
+        ],
+        "value": 0.9773123909249561,
+        "unit": "mm",
+        "driving": true,
+        "display_position": [
+          2.181500872600349,
+          2.024432809773124
+        ]
+      }
+    ],
+    "regions": [],
+    "interfaces": []
+  }
+}

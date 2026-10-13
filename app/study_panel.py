@@ -12,6 +12,7 @@ from matplotlib.backends.backend_qtagg import FigureCanvasQTAgg
 from matplotlib.figure import Figure
 
 from app.study_runner import StudyRunner
+from app.study_export import StudyExportMixin
 from app.drive_control import DriveControlEditor
 from app.material_coefficients import MaterialCoefficients
 from model.materials import MATERIALS
@@ -19,6 +20,7 @@ from model.results import read_force_curve
 from model.study import ReferenceGeometry, StudyConfig
 from model.study_results import rank_geometries
 from model.study_storage import StudyStorage
+from visualization.mesh_view import MeshView
 
 
 class StudyCanvas(FigureCanvasQTAgg):
@@ -51,7 +53,7 @@ def numbers(text):
     return values
 
 
-class StudyPanel(QWidget):
+class StudyPanel(StudyExportMixin, QWidget):
     open_result = Signal(object)
 
     def __init__(self, window):
@@ -234,22 +236,24 @@ class StudyPanel(QWidget):
         self.summary = QLabel("Noch keine Studie geladen")
         self.summary.setWordWrap(True)
         layout.addWidget(self.summary)
+        layout.addLayout(self.build_export_controls())
         split = QSplitter(Qt.Orientation.Horizontal)
         left = QWidget()
         side = QVBoxLayout(left)
-        self.ranking = QTableWidget(0, 6)
-        self.ranking.setHorizontalHeaderLabels(["R [mm]", "tx [mm]", "ty [mm]", "Δu Endkraft [mm]", "Referenz", "Status"])
-        self.ranking.setToolTip("Differenz des Zustellwegs bei erreichter Endkraft zwischen kleinstem und größtem Druck.")
+        self.ranking = QTableWidget(0, 7)
+        self.ranking.setHorizontalHeaderLabels(["R [mm]", "tx [mm]", "ty [mm]", "Δk/k_ref [%]", "Δu Endkraft [mm]", "Referenz", "Status"])
+        self.ranking.setToolTip('Relative Steifigkeitsänderung vom kleinsten zum größten geplanten Studiendruck: 100 × (k_max − k_ref) / k_ref. Δu bei Endkraft bleibt eine separate Wegdifferenz.')
         self.ranking.setSelectionBehavior(QAbstractItemView.SelectionBehavior.SelectRows)
-        self.ranking.setSelectionMode(QAbstractItemView.SelectionMode.SingleSelection)
+        self.ranking.setSelectionMode(QAbstractItemView.SelectionMode.ExtendedSelection)
         self.ranking.setEditTriggers(QAbstractItemView.EditTrigger.NoEditTriggers)
         self.ranking.setSortingEnabled(True)
         self.ranking.itemSelectionChanged.connect(self.draw_detail)
         side.addWidget(self.ranking, 1)
-        self.case_table = QTableWidget(0, 5)
-        self.case_table.setHorizontalHeaderLabels(["Druck", "k [N/mm]", "R²", "Status", "Hinweis"])
+        self.case_table = QTableWidget(0, 8)
+        self.case_table.setHorizontalHeaderLabels(["R", "tx", "ty", "Druck", "k [N/mm]", "R²", "Status", "Hinweis"])
         self.case_table.setEditTriggers(QAbstractItemView.EditTrigger.NoEditTriggers)
         self.case_table.setSelectionBehavior(QAbstractItemView.SelectionBehavior.SelectRows)
+        self.case_table.setSelectionMode(QAbstractItemView.SelectionMode.ExtendedSelection)
         self.case_table.setMaximumHeight(180)
         self.case_table.cellDoubleClicked.connect(self.open_case)
         self.case_table.setToolTip("Doppelklick: gespeicherten Lauf in der Einzelansicht öffnen. Fehlerdetails im Tooltip.")
@@ -259,6 +263,23 @@ class StudyPanel(QWidget):
         self.detail_figure = Figure(figsize=(7, 5), layout="constrained", facecolor="white")
         self.detail_canvas = StudyCanvas(self.detail_figure)
         views.addTab(self.detail_canvas, "Kurven der Auswahl")
+        final_widget = QWidget()
+        final_layout = QHBoxLayout(final_widget)
+        final_layout.setContentsMargins(0, 0, 0, 0)
+        self.final_views = []
+        self.final_labels = []
+        for _ in range(2):
+            column = QVBoxLayout()
+            title = QLabel("Kein erfolgreicher Lauf")
+            title.setObjectName("sectionTitle")
+            view = MeshView()
+            view.setMinimumHeight(420)
+            column.addWidget(title)
+            column.addWidget(view, 1)
+            final_layout.addLayout(column, 1)
+            self.final_labels.append(title)
+            self.final_views.append(view)
+        views.addTab(final_widget, "Finale Verformung")
         split.addWidget(views)
         split.setSizes([480, 850])
         layout.addWidget(split, 1)
@@ -491,6 +512,8 @@ class StudyPanel(QWidget):
         self.resume_button.setEnabled(not busy and self.storage is not None)
         self.auto_reanalyze_button.setEnabled(not busy and self.storage is not None)
         self.stop_button.setEnabled(self.runner.busy and not self.runner.stop_requested)
+        for widget in (self.export_kind, self.export_button, self.export_copy_button):
+            widget.setEnabled(self.storage is not None)
 
     def _progress(self, text):
         self.status.setText(text)
@@ -512,17 +535,25 @@ class StudyPanel(QWidget):
             if key == selected:
                 selected_row = index
             delta = row["delta_end_drive_mm"]
-            for col, value in enumerate((row["radius_mm"], row["thickness_x_mm"], row["thickness_y_mm"], delta,
-                                          ", ".join(row["references"]), row["status"])):
-                if col < 4:
+            relative = row['relative_stiffness_change_pct']
+            for col, value in enumerate((row["radius_mm"], row["thickness_x_mm"], row["thickness_y_mm"], relative, delta,
+                                          ", ".join(row["references"]), row['stiffness_comparison_status'])):
+                if col < 5:
                     item = NumericItem("—" if value is None else f"{value:.5g}")
                     item.setData(Qt.ItemDataRole.UserRole, value if value is not None else -float("inf"))
+                    if col == 3:
+                        font = item.font(); font.setBold(True); item.setFont(font)
                 else:
                     item = QTableWidgetItem(value)
                 item.setData(Qt.ItemDataRole.UserRole + 1, key)
                 item.setToolTip(str(value) if value is not None else "Nicht auswertbar / noch nicht gerechnet")
+                if col == 3:
+                    item.setToolTip(f"100 × (k bei {row['comparison_pressure_mmhg']:g} mmHg − k bei {row['reference_pressure_mmhg']:g} mmHg) / k bei {row['reference_pressure_mmhg']:g} mmHg\n"
+                                    + row['stiffness_comparison_status'] + '\n' + row['stiffness_comparison_notes'])
                 self.ranking.setItem(index, col, item)
         self.ranking.resizeColumnsToContents()
+        # Reserve room for the key metric's header and the sort indicator.
+        self.ranking.setColumnWidth(3, max(140, self.ranking.columnWidth(3) + 22))
         self.ranking.selectRow(selected_row)
         self.ranking.setSortingEnabled(True)
         self.ranking.sortItems(3, Qt.SortOrder.DescendingOrder)
@@ -543,7 +574,7 @@ class StudyPanel(QWidget):
                 fit_text = f"Fit δ {config.fit_start_after_contact_mm:g}–{config.fit_end_after_contact_mm:g} mm"
             self.summary.setText(f"{self.storage.directory.name} · {finished}/{len(self.storage.cases)} bearbeitet · "
                 f"{modes[config.pressure_mode]}\nKugel R {p.pressure_shell.radius_mm:g} / t {p.pressure_shell.thickness_mm:g} mm · "
-                f"{fit_text} · Δu bei Endkraft in mm (kleinster → größter Druck)")
+                f"{fit_text} · Δk/k_ref in % (kleinster → größter Druck; Basis k beim kleinsten Druck)")
             self.summary.setToolTip(str(self.storage.directory) + "\nMaterialien: " +
                 ", ".join(v["name"] for v in self.storage.definition["materials"].values()))
         else:
@@ -551,58 +582,109 @@ class StudyPanel(QWidget):
         self.draw_detail()
 
     def selected_geometry(self):
-        row = self.ranking.currentRow()
-        item = self.ranking.item(row, 0) if row >= 0 else None
-        return tuple(item.data(Qt.ItemDataRole.UserRole + 1)) if item else None
+        keys = []
+        for row in sorted({index.row() for index in self.ranking.selectedIndexes()}):
+            item = self.ranking.item(row, 0)
+            if item:
+                key = tuple(item.data(Qt.ItemDataRole.UserRole + 1))
+                if key not in keys:
+                    keys.append(key)
+        return keys
 
     def draw_detail(self):
         self.detail_figure.clear()
         force_ax, k_ax = self.detail_figure.subplots(2, 1)
+        selected_case_ids = {
+            self.detail_cases[index.row()].get("id")
+            for index in self.case_table.selectedIndexes()
+            if index.row() < len(self.detail_cases)
+        }
         self.case_table.setRowCount(0)
         self.detail_cases = []
-        key = self.selected_geometry()
-        if self.storage and key:
+        for title, view in zip(self.final_labels, self.final_views):
+            title.setText("Kein erfolgreicher Lauf")
+            view.show_empty("Kein erfolgreicher Lauf ausgewählt")
+        keys = self.selected_geometry()
+        if self.storage and keys:
             cases = []
             for c in self.storage.cases:
                 shell = c["parameters"]["measurement_shell"]
                 tx = shell.get("thickness_x_mm", shell.get("thickness_mm"))
                 ty = shell.get("thickness_y_mm", tx)
-                if (shell["radius_mm"], tx, ty) == key:
+                if (shell["radius_mm"], tx, ty) in keys:
                     cases.append(c)
             cases.sort(key=lambda c: c["parameters"]["pressure_mmhg"])
             self.detail_cases = cases
             self.case_table.setRowCount(len(cases))
-            pressures, stiffness = [], []
             for index, case in enumerate(cases):
                 result = case["result"]
-                for column, value in enumerate((case["parameters"]["pressure_mmhg"],
+                shell = case["parameters"]["measurement_shell"]
+                tx = shell.get("thickness_x_mm", shell.get("thickness_mm"))
+                ty = shell.get("thickness_y_mm", tx)
+                for column, value in enumerate((shell["radius_mm"], tx, ty,
+                    case["parameters"]["pressure_mmhg"],
                     f"{result['stiffness']:.5g}" if result else "—",
                     f"{result['r_squared']:.5g}" if result and result['r_squared'] is not None else "—", case["status"],
                     case["error"] or "; ".join(result["warnings"] if result else []))):
                     item = QTableWidgetItem(str(value))
                     item.setToolTip(str(value))
                     self.case_table.setItem(index, column, item)
-                if case["status"] != "success" or not result:
+                if case.get("id") in selected_case_ids:
+                    self.case_table.selectRow(index)
+            force_ax.set_title("Ausgewählte Geometrien: " + ", ".join(
+                f"R {key[0]:g} / tx {key[1]:g} / ty {key[2]:g} mm" for key in keys))
+            # The final comparison is deliberately limited to the currently
+            # selected geometry and exactly two pressure cases.  A partial
+            # target-force run is still useful here: its exported history ends
+            # at the last valid converged state (e.g. displacement limit).
+            display_cases = []
+            for case in cases:
+                if not case.get("attempts"):
+                    continue
+                run = self.storage.run_path(case["attempts"][-1])
+                if (run / "model.feb").is_file() and (run / "nodal_displacements.csv").is_file():
+                    display_cases.append(case)
+            display_cases.sort(key=lambda c: c["parameters"]["pressure_mmhg"])
+            if len(display_cases) > 1:
+                display_cases = [display_cases[0], display_cases[-1]]
+            selected_rows = {index.row() for index in self.case_table.selectedIndexes()}
+            explicitly_selected = [cases[row] for row in sorted(selected_rows) if row < len(cases)]
+            curve_cases = explicitly_selected or cases
+            display_ids = {case.get("id") for case in display_cases}
+            final_cases = [case for case in explicitly_selected if case.get("id") in display_ids][:2]
+            if not final_cases:
+                final_cases = display_cases
+            pressures, stiffness = [], []
+            for case in curve_cases:
+                if case["status"] != "success" or not case.get("attempts") or not case.get("result"):
                     continue
                 try:
                     curve = read_force_curve(self.storage.run_path(case["attempts"][-1]) / "force_displacement.csv")
+                    result = case["result"]
                     p = case["parameters"]["pressure_mmhg"]
                     x = np.asarray(curve.displacement_mm) - result["contact_mm"]
                     line, = force_ax.plot(x, curve.force_n, label=f"{p:g} mmHg")
-                    a, b = result["fit_start_delta_mm"], result["fit_end_delta_mm"]
-                    force_ax.plot([a, b], [result["stiffness"] * u + result["intercept"] for u in (a, b)],
-                                  "--", color=line.get_color(), linewidth=2)
                     pressures.append(p)
                     stiffness.append(result["stiffness"])
                 except (OSError, ValueError):
                     continue
-            fitted = next((c["result"] for c in cases if c["status"] == "success" and c["result"]), None)
-            if fitted:
-                force_ax.axvspan(fitted["fit_start_delta_mm"], fitted["fit_end_delta_mm"], color="#e6b76c", alpha=.15)
-            force_ax.set_title(f"Messschale R {key[0]:g} / tx {key[1]:g} / ty {key[2]:g} mm")
             if pressures:
                 force_ax.legend(fontsize=8)
                 k_ax.plot(pressures, stiffness, "o-", color="#0b9185")
+            for index, case in enumerate(final_cases):
+                run = self.storage.run_path(case["attempts"][-1])
+                model_path = run / "model.feb"
+                if not model_path.is_file():
+                    continue
+                pressure = case["parameters"]["pressure_mmhg"]
+                status = case.get("status", "unbekannt")
+                suffix = " · letzter gültiger Stand" if status != "success" else ""
+                self.final_labels[index].setText(f"{pressure:g} mmHg{suffix}")
+                self.final_views[index].load_mesh(model_path)
+                if self.final_views[index].history is not None:
+                    # read_deformation contains only accepted/converged states;
+                    # the final frame is therefore the last valid state.
+                    self.final_views[index].set_time(float(self.final_views[index].history.times[-1]))
         force_ax.set(xlabel="Weg ab Kontakt δ [mm]", ylabel="Kraft [N]")
         k_ax.set(xlabel="Anfangsdruck P₀ [mmHg]" if self.storage and self.storage.config.pressure_mode == "closed"
                  else "Druck [mmHg]", ylabel="Steifigkeit k [N/mm]")

@@ -22,6 +22,26 @@ Beim Start wird der neueste erfolgreiche GUI-Lauf geladen; historische Baselines
 
 Allein das Öffnen der App oder Ändern von Parametern startet **keine** Berechnung. Gespeicherte Ergebnisse bleiben unverändert, bis ein neuer Lauf abgeschlossen ist. Bei alten Läufen ohne Verschiebungsexport wird nur das Referenznetz gezeigt und die Wiedergabe deaktiviert. Ein SHA-256-Abgleich verhindert das Laden von Verschiebungen zu einer anderen Eingabedatei.
 
+Nach erfolgreichem Ergebnisexport wird das Aufräumen großer Arbeitsdateien nur noch bestmöglich versucht. Gesperrte Dateien oder Ordner erzeugen eine **Aufräumwarnung**, aber keinen Solverfehler; Ergebnisse und Animation werden trotzdem geladen. `case.json` enthält `cleanup_warnings` und setzt `temporary_files_cleaned` nur bei vollständig erfolgreichem Aufräumen auf `true`. Echte Solver- oder Exportfehler bleiben weiterhin Fehler.
+
+## Messschale: bisherige Definition oder Editor-Import
+
+Unter **Modell → Messschale → Definition** bleiben **Wie bisher: Radius und Wanddicken** und **Importierte Editor-Geometrie** getrennt auswählbar. Beim Umschalten bleiben die bisherigen Zahlen und der geladene Import erhalten.
+
+Im Editor zuerst Bereiche, Materialien, Interfaces und Randverhalten zuweisen und die gesamte Skizze als JSON **speichern**. Im Hauptprogramm **Messschale importieren …** wählen. Jeder Bereich wird als eigener Materialkörper zum 3D-Wedge rotiert. Verklebt bedeutet gemeinsame konforme Netzknoten; reibungsfrei bedeutet getrennte Knoten mit reibungslosem FEBio-Kontakt. Äußere Konturflächen sind mögliche Kontaktflächen zur Druckkugel beziehungsweise Deckschale.
+
+**Kontakt-Referenz** bestimmt den axialen Nullpunkt für den Anfangsspalt. **Messpunkt** bestimmt getrennt den Punkt und Materialbereich für die Wegauswertung (Zustellweg minus dessen axiale Bewegung). Gerade bei gleitenden Materialbereichen beide Zuordnungen kontrollieren. Vorgeschlagen werden der vorderste äußere Achsenpunkt als Kontakt-Referenz und der nächste äußere Achsenpunkt als Messpunkt; beide sind manuell änderbar.
+
+Nur Kanten mit **Vorgegebene Verschiebung** erhalten eine axiale Zustellvorgabe. Auf der Rotationsachse werden die zugehörigen Knoten statt einer nicht vorhandenen Rotationsfläche verwendet. Andere Kanten bleiben ohne zusätzliche Verschiebungsvorgabe; Rotationsachsen- und Wedge-Symmetriebedingungen gelten weiter. Ohne ausgewählte Zustellkante wird kein Lauf gestartet. Materialien mit noch nicht definierter Faserorientierung sowie widersprüchliche Interface-Kombinationen werden ausdrücklich abgewiesen.
+
+Die vollständige importierte Definition wird in GUI-Einstellungen und Lauf-Parametersnapshots eingebettet. Eine spätere Änderung oder Entfernung der Quelldatei verändert keinen gespeicherten Lauf; neue Editor-Änderungen müssen erneut importiert werden. Vorschau und Ergebnisanimation zeigen die Materialbereiche getrennt. Die R/tx/ty-Rasterstudie bleibt dem bisherigen parametrischen Modus vorbehalten; importierte Geometrien werden zunächst als Einzelrechnungen verwendet.
+
+## Netzprüfung vor dem Solverstart
+
+Im Modell-Tab erzeugt **Netz & Randbedingungen prüfen** das tatsächliche FEBio-Eingabenetz in einem eigenen Ordner unter `work/mesh_previews/`, ohne FEBio zu starten. Der Tab **Netz & Randbedingungen** zeigt den unverformten Axialschnitt mit Materialbereichen, Zustellknoten, Fixierungen, Druck- und Kontaktflächen. Die Tabelle enthält die tatsächlich exportierten Bedingungen einschließlich des jeweiligen Lastschritts; eine ausgewählte Zeile wird gelb hervorgehoben. Symmetrie- und Kontaktflächen lassen sich zusätzlich einblenden. Die Darstellung ist nur eine Prüfung, keine Änderung der Bedingungen.
+
+**Letztes Netz öffnen** bleibt auch während eines Laufs verfügbar. Bei neuen Simulationen erscheint das erzeugte Netz bereits vor dem Solverstart in diesem Tab; das Protokoll wird regelmäßig aktualisiert. Bereiche ohne axiale Vorgabe und ohne gemeinsame Knoten mit axial gehaltenen Körpern erhalten einen Hinweis auf mögliche Starrkörper-Moden. Das ist keine vollständige Stabilitätsanalyse: reibungsfreier Kontakt kann je nach Kontaktzustand tragen oder offen sein. Die Prüfung fügt keine versteckten Lagerungen hinzu.
+
 ## Parameterstudie
 
 Der neue Tab **Parameterstudie** hat eine eigene editierbare Konfiguration. **Modellparameter übernehmen** kopiert Kugelgeometrie, Materialien, Spalt, Hub, Netz und Druckmodus aus dem Modell-Tab. Radien-/Dicken-/Drucklisten mit Semikolon oder Leerzeichen trennen; Dezimalkommas sind erlaubt. Referenzgeometrien können frei hinzugefügt, geändert oder entfernt werden. „Ohne Innendruck“ erzeugt pro Geometrie nur einen Fall ohne Volumenbindung; dafür gibt es keine Druckempfindlichkeit.

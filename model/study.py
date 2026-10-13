@@ -73,6 +73,8 @@ class StudyConfig:
         return (0.0,) if self.pressure_mode == "none" else tuple(sorted(set(self.pressures_mmhg)))
 
     def cases(self) -> list[dict]:
+        if self.base_parameters.measurement_definition is not None:
+            raise ValueError('R/tx/ty-Rasterstudien sind nur für die bisherige Messschale verfügbar. Importierte Geometrieparameter bitte im Editor variieren und als eigene Einzelrechnungen importieren.')
         if self.pressure_mode not in ("closed", "constant", "none"):
             raise ValueError("Unbekannter Druckmodus.")
         if self.fit_mode not in ("automatic", "manual"):
@@ -108,6 +110,8 @@ class StudyConfig:
                 if errors := params.validate():
                     raise ValueError(f"R={radius}, tx={tx}, ty={ty}, P={pressure}: " + " ".join(errors))
                 identity = asdict(params)
+                if identity.get('measurement_definition') is None:
+                    identity.pop('measurement_definition', None)  # Preserve legacy case IDs.
                 shell_identity = identity["measurement_shell"]
                 if tx == ty:
                     shell_identity["thickness_mm"] = shell_identity.pop("thickness_x_mm")
